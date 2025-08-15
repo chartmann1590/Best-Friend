@@ -13,7 +13,7 @@ class Memory(db.Model):
     importance = db.Column(db.Float, default=1.0)  # 0.0 to 1.0
     last_accessed = db.Column(db.DateTime, default=datetime.utcnow)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    metadata = db.Column(db.JSON, default={})
+    memory_metadata = db.Column(db.JSON, default={})
     
     def to_dict(self):
         """Convert memory to dictionary for API responses."""
@@ -24,5 +24,5 @@ class Memory(db.Model):
             'importance': self.importance,
             'last_accessed': self.last_accessed.isoformat() if self.last_accessed else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'metadata': self.metadata
+            'metadata': self.memory_metadata
         }

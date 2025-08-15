@@ -45,7 +45,7 @@ def upgrade() -> None:
         sa.Column('content', sa.Text(), nullable=False),
         sa.Column('timestamp', sa.DateTime(), nullable=True),
         sa.Column('conversation_id', sa.String(length=50), nullable=True),
-        sa.Column('metadata', sa.JSON(), nullable=True),
+        sa.Column('message_metadata', sa.JSON(), nullable=True),
         sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
         sa.PrimaryKeyConstraint('id')
     )
@@ -60,7 +60,7 @@ def upgrade() -> None:
         sa.Column('importance', sa.Float(), nullable=True),
         sa.Column('last_accessed', sa.DateTime(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=True),
-        sa.Column('metadata', sa.JSON(), nullable=True),
+        sa.Column('memory_metadata', sa.JSON(), nullable=True),
         sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
         sa.PrimaryKeyConstraint('id')
     )

@@ -35,7 +35,7 @@ class TestMemoryCreation:
                 importance=0.8,
                 metadata=metadata
             )
-            assert memory.metadata == metadata
+            assert memory.memory_metadata == metadata
     
     def test_create_memory_with_custom_importance(self, app, user, memory_service):
         """Test creating memory with custom importance."""

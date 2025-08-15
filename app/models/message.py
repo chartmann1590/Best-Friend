@@ -10,7 +10,7 @@ class Message(db.Model):
     content = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     conversation_id = db.Column(db.String(50), nullable=True)  # For grouping messages
-    metadata = db.Column(db.JSON, default={})  # Store additional info like audio duration, etc.
+    message_metadata = db.Column(db.JSON, default={})  # Store additional info like audio duration, etc.
     
     def to_dict(self):
         """Convert message to dictionary for API responses."""
@@ -20,5 +20,5 @@ class Message(db.Model):
             'content': self.content,
             'timestamp': self.timestamp.isoformat() if self.timestamp else None,
             'conversation_id': self.conversation_id,
-            'metadata': self.metadata
+            'metadata': self.message_metadata
         }
