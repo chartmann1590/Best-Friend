@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome - Best Friend AI Companion{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-2xl w-full space-y-8">
+        <div class="text-center">
+            <div class="mx-auto h-16 w-16 bg-blue-500 rounded-full flex items-center justify-center">
+                <span class="text-white font-bold text-2xl">BF</span>
+            </div>
+            <h2 class="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white">
+                Welcome to Best Friend
+            </h2>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                Let's set up your AI companion
+            </p>
+        </div>
+        
+        <form class="mt-8 space-y-6" method="POST">
+            <!-- User Profile Section -->
+            <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Your Profile</h3>
+                
+                <div class="grid grid-cols-1 gap-4">
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
+                        <input type="text" id="name" name="name" 
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                               placeholder="Your name">
+                    </div>
+                    
+                    <div>
+                        <label for="timezone" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Timezone</label>
+                        <select id="timezone" name="timezone" 
+                                class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                            <option value="UTC">UTC</option>
+                            <option value="America/New_York">Eastern Time</option>
+                            <option value="America/Chicago">Central Time</option>
+                            <option value="America/Denver">Mountain Time</option>
+                            <option value="America/Los_Angeles">Pacific Time</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label for="bio" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Bio (Optional)</label>
+                        <textarea id="bio" name="bio" rows="3" 
+                                  class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                  placeholder="Tell me about yourself..."></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- AI Configuration Section -->
+            <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">AI Configuration</h3>
+                
+                <div class="grid grid-cols-1 gap-4">
+                    <div>
+                        <label for="ollama_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Ollama URL</label>
+                        <input type="url" id="ollama_url" name="ollama_url" 
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                               value="http://ollama:11434"
+                               placeholder="http://ollama:11434">
+                    </div>
+                    
+                    <div>
+                        <label for="ollama_model" class="block text-sm font-medium text-gray-700 dark:text-gray-300">AI Model</label>
+                        <input type="text" id="ollama_model" name="ollama_model" 
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                               value="llama3.1:8b"
+                               placeholder="llama3.1:8b">
+                    </div>
+                    
+                    <div>
+                        <label for="personality" class="block text-sm font-medium text-gray-700 dark:text-gray-300">AI Personality</label>
+                        <textarea id="personality" name="personality" rows="3" 
+                                  class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                  placeholder="Describe how you want your AI companion to behave...">You are a helpful and friendly AI companion. You are knowledgeable, empathetic, and always ready to help with conversation, advice, or just being a good friend.</textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Voice Configuration Section -->
+            <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Voice Settings</h3>
+                
+                <div class="grid grid-cols-1 gap-4">
+                    <div>
+                        <label for="tts_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300">TTS Server URL</label>
+                        <input type="url" id="tts_url" name="tts_url" 
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                               value="http://opentts:5500"
+                               placeholder="http://opentts:5500">
+                    </div>
+                    
+                    <div>
+                        <label for="tts_voice" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Voice</label>
+                        <input type="text" id="tts_voice" name="tts_voice" 
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                               value="en_US-amy-low"
+                               placeholder="en_US-amy-low">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Privacy Settings -->
+            <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Privacy & Memory</h3>
+                
+                <div class="flex items-center">
+                    <input type="checkbox" id="memory_enabled" name="memory_enabled" value="true" checked
+                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                    <label for="memory_enabled" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                        Enable long-term memory (recommended)
+                    </label>
+                </div>
+                
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    Your AI companion will remember conversations and use them to provide more personalized responses. 
+                    You can disable this at any time in settings.
+                </p>
+            </div>
+            
+            <div>
+                <button type="submit" 
+                        class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Complete Setup
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

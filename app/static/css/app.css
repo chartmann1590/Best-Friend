@@ -1,0 +1,191 @@
+/* Custom styles for Best Friend AI Companion */
+
+/* Chat interface */
+.chat-container {
+    height: calc(100vh - 200px);
+    overflow-y: auto;
+}
+
+.message {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    max-width: 80%;
+}
+
+.message.user {
+    background-color: #3b82f6;
+    color: white;
+    margin-left: auto;
+}
+
+.message.ai {
+    background-color: #f3f4f6;
+    color: #1f2937;
+    border: 1px solid #e5e7eb;
+}
+
+/* Voice recording */
+.voice-modal {
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.voice-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.record-button {
+    width: 4rem;
+    height: 4rem;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.record-button.recording {
+    background-color: #ef4444;
+    animation: pulse 1.5s infinite;
+}
+
+.record-button:not(.recording) {
+    background-color: #3b82f6;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+/* Waveform visualization */
+.waveform {
+    width: 100%;
+    height: 60px;
+    background-color: #f3f4f6;
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.waveform-bar {
+    display: inline-block;
+    width: 2px;
+    background-color: #3b82f6;
+    margin: 0 1px;
+    animation: wave 0.5s ease-in-out;
+}
+
+@keyframes wave {
+    0% {
+        height: 5px;
+    }
+    50% {
+        height: 20px;
+    }
+    100% {
+        height: 5px;
+    }
+}
+
+/* Settings form */
+.settings-section {
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.settings-section h2 {
+    color: #1f2937;
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+/* Onboarding wizard */
+.onboarding-step {
+    display: none;
+}
+
+.onboarding-step.active {
+    display: block;
+}
+
+.step-indicator {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 2rem;
+}
+
+.step-dot {
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 50%;
+    background-color: #d1d5db;
+    margin: 0 0.25rem;
+}
+
+.step-dot.active {
+    background-color: #3b82f6;
+}
+
+/* Loading states */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.spinner {
+    border: 2px solid #f3f4f6;
+    border-top: 2px solid #3b82f6;
+    border-radius: 50%;
+    width: 1rem;
+    height: 1rem;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .message {
+        max-width: 90%;
+    }
+    
+    .settings-section {
+        padding: 1rem;
+    }
+    
+    .voice-controls {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .settings-section {
+        background-color: #1f2937;
+        color: #f9fafb;
+    }
+    
+    .settings-section h2 {
+        color: #f9fafb;
+    }
+    
+    .message.ai {
+        background-color: #374151;
+        color: #f9fafb;
+        border-color: #4b5563;
+    }
+}
