@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request, jsonify, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_limiter import Limiter
@@ -38,6 +38,13 @@ def create_app(config_name=None):
     login_manager.login_view = 'auth.login'
     login_manager.login_message = 'Please log in to access this page.'
     login_manager.login_message_category = 'info'
+    
+    # Custom unauthorized handler for API endpoints
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        if request.path.startswith('/api/'):
+            return jsonify({'error': 'Authentication required'}), 401
+        return redirect(url_for('auth.login'))
     
     # Register blueprints
     from app.blueprints.auth import auth_bp

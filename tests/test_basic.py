@@ -1,5 +1,6 @@
 import pytest
 from app.models import User
+from app import db
 
 def test_health_check(client):
     """Test health check endpoint."""
