@@ -1,27 +1,5 @@
 import pytest
-from app import create_app, db
-from app.models import User, Setting
-
-@pytest.fixture
-def app():
-    """Create application for testing."""
-    app = create_app('testing')
-    
-    with app.app_context():
-        db.create_all()
-        yield app
-        db.session.remove()
-        db.drop_all()
-
-@pytest.fixture
-def client(app):
-    """Create test client."""
-    return app.test_client()
-
-@pytest.fixture
-def runner(app):
-    """Create test runner."""
-    return app.test_cli_runner()
+from app.models import User
 
 def test_health_check(client):
     """Test health check endpoint."""

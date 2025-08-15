@@ -1,0 +1,16 @@
+# Test dependencies only
+pytest>=8.0.0
+pytest-cov>=6.0.0
+pytest-flask>=1.0.0
+
+# Basic Flask dependencies for testing
+Flask>=3.0.0
+Werkzeug>=3.0.0
+Jinja2>=3.0.0
+MarkupSafe>=2.0.0
+itsdangerous>=2.0.0
+click>=8.0.0
+blinker>=1.0.0
+
+# For basic app functionality in tests
+python-dotenv>=1.0.0

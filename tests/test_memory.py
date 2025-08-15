@@ -1,28 +1,7 @@
 import pytest
-from app import create_app, db
 from app.models import User, Memory, Message
 from app.services.memory import MemoryService
 from datetime import datetime, timedelta
-
-@pytest.fixture
-def app():
-    app = create_app('testing')
-    with app.app_context():
-        db.create_all()
-        yield app
-        db.drop_all()
-
-@pytest.fixture
-def user(app):
-    user = User(
-        email='test@example.com',
-        name='Test User',
-        is_active=True
-    )
-    user.set_password('password123')
-    db.session.add(user)
-    db.session.commit()
-    return user
 
 @pytest.fixture
 def memory_service(app):

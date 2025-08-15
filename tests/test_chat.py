@@ -1,38 +1,9 @@
 import pytest
 from flask import url_for
-from app import create_app, db
 from app.models import User, Message, Memory
 from app.services.memory import MemoryService
 from app.services.ollama_client import OllamaClient
 import json
-
-@pytest.fixture
-def app():
-    app = create_app('testing')
-    with app.app_context():
-        db.create_all()
-        yield app
-        db.drop_all()
-
-@pytest.fixture
-def client(app):
-    return app.test_client()
-
-@pytest.fixture
-def runner(app):
-    return app.test_cli_runner()
-
-@pytest.fixture
-def user(app):
-    user = User(
-        email='test@example.com',
-        name='Test User',
-        is_active=True
-    )
-    user.set_password('password123')
-    db.session.add(user)
-    db.session.commit()
-    return user
 
 @pytest.fixture
 def authenticated_client(client, user):
