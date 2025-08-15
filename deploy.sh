@@ -59,17 +59,25 @@ if ! grep -q "FERNET_KEY=" .env || grep -q "your-fernet-key-here" .env; then
         FERNET_KEY=$(openssl rand -base64 32)
         echo "✅ Fernet key generated using OpenSSL"
     fi
-    # Escape special characters in the key for sed
-    ESCAPED_FERNET_KEY=$(echo "$FERNET_KEY" | sed 's/[[\.*^$()+?{|]/\\&/g')
-    sed -i.bak "s/FERNET_KEY=.*/FERNET_KEY=$ESCAPED_FERNET_KEY/" .env
+    # Use awk for safer replacement (handles special characters better)
+    awk -v key="$FERNET_KEY" 'sub(/^FERNET_KEY=.*/, "FERNET_KEY=" key)' .env > .env.tmp && mv .env.tmp .env
 fi
 
 # Generate secret key if not present
 if ! grep -q "SECRET_KEY=" .env || grep -q "your-secret-key-here" .env; then
     echo "🔑 Generating secret key..."
-    SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
-    sed -i.bak "s/SECRET_KEY=.*/SECRET_KEY=$SECRET_KEY/" .env
-    echo "✅ Secret key generated"
+    # Try to use Python3 with secrets, fallback to openssl if not available
+    if python3 -c "import secrets" 2>/dev/null; then
+        SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+        echo "✅ Secret key generated using Python secrets"
+    else
+        echo "⚠️  Python secrets module not available, using OpenSSL fallback..."
+        # Generate a 32-byte key using OpenSSL and base64 encode it
+        SECRET_KEY=$(openssl rand -base64 32)
+        echo "✅ Secret key generated using OpenSSL"
+    fi
+    # Use awk for safer replacement
+    awk -v key="$SECRET_KEY" 'sub(/^SECRET_KEY=.*/, "SECRET_KEY=" key)' .env > .env.tmp && mv .env.tmp .env
 fi
 
 # Build and start containers
