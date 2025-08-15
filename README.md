@@ -31,6 +31,8 @@ A production-ready, Dockerized Flask web application that provides a personal AI
 ```bash
 # Clone and deploy in one go
 git clone https://github.com/chartmann1590/Best-Friend.git && cd Best-Friend && ./deploy.sh
+
+# Access at https://YOUR_SYSTEM_IP
 ```
 
 ### Manual Deployment
@@ -48,7 +50,7 @@ git clone https://github.com/chartmann1590/Best-Friend.git && cd Best-Friend && 
    ```
 
 3. **Access your AI companion**
-   - 🌐 Open https://localhost in your browser
+   - 🌐 Open https://YOUR_SYSTEM_IP in your browser
    - 🔒 Accept the self-signed certificate warning
    - 🎯 Complete the onboarding wizard
    - 🚀 Start chatting with your AI companion!

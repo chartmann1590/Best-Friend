@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, Response, stream_template
+from flask import Blueprint, request, jsonify, Response, stream_template, current_app
 from flask_login import login_required, current_user
 from app import db, limiter
 from app.models import Message, Memory
@@ -16,6 +16,16 @@ def chat():
     
     if not message:
         return jsonify({'error': 'Message is required'}), 400
+    
+    # Content filtering
+    content_filter = current_app.content_filter
+    filter_result = content_filter.filter_content(message, current_user.id)
+    
+    if filter_result['blocked']:
+        return jsonify({
+            'error': 'Content blocked for safety',
+            'reason': filter_result['blocked_reason']
+        }), 400
     
     # Save user message
     user_message = Message(

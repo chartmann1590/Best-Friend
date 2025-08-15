@@ -63,6 +63,22 @@
                            placeholder="llama3.1:8b">
                 </div>
                 
+                <div>
+                    <label for="temperature" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Temperature</label>
+                    <input type="range" id="temperature" name="temperature" min="0.0" max="2.0" step="0.1" 
+                           value="{{ settings.get('temperature', '0.7') }}"
+                           class="w-full">
+                    <span id="temperature_value" class="text-sm text-gray-500">{{ settings.get('temperature', '0.7') }}</span>
+                </div>
+                
+                <div>
+                    <label for="top_p" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Top-P</label>
+                    <input type="range" id="top_p" name="top_p" min="0.1" max="1.0" step="0.1" 
+                           value="{{ settings.get('top_p', '0.9') }}"
+                           class="w-full">
+                    <span id="top_p_value" class="text-sm text-gray-500">{{ settings.get('top_p', '0.9') }}</span>
+                </div>
+                
                 <div class="md:col-span-2">
                     <label for="personality" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">AI Personality</label>
                     <textarea id="personality" name="personality" rows="4" 
@@ -205,6 +221,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const speakingRateValue = document.getElementById('speaking_rate_value');
     const pitch = document.getElementById('pitch');
     const pitchValue = document.getElementById('pitch_value');
+    const temperature = document.getElementById('temperature');
+    const temperatureValue = document.getElementById('temperature_value');
+    const topP = document.getElementById('top_p');
+    const topPValue = document.getElementById('top_p_value');
     
     speakingRate.addEventListener('input', function() {
         speakingRateValue.textContent = this.value;
@@ -212,6 +232,14 @@ document.addEventListener('DOMContentLoaded', function() {
     
     pitch.addEventListener('input', function() {
         pitchValue.textContent = this.value;
+    });
+    
+    temperature.addEventListener('input', function() {
+        temperatureValue.textContent = this.value;
+    });
+    
+    topP.addEventListener('input', function() {
+        topPValue.textContent = this.value;
     });
     
     // Delete data modal
