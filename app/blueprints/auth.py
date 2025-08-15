@@ -3,6 +3,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from app.models import User
 from app import db
 from werkzeug.security import check_password_hash
+from app.logging_config import log_authentication_event, log_security_event, log_error
 import os
 
 auth_bp = Blueprint('auth', __name__)
@@ -22,8 +23,27 @@ def login():
         if user and user.check_password(password):
             login_user(user, remember=True)
             next_page = request.args.get('next')
+            
+            # Log successful login
+            log_authentication_event(
+                'login',
+                user.id,
+                request.remote_addr,
+                True,
+                f"User agent: {request.headers.get('User-Agent', 'Unknown')}"
+            )
+            
             return redirect(next_page or url_for('main.index'))
         else:
+            # Log failed login attempt
+            log_authentication_event(
+                'login',
+                email,
+                request.remote_addr,
+                False,
+                f"Invalid credentials for email: {email}"
+            )
+            
             flash('Invalid email or password', 'error')
     
     return render_template('auth/login.html')
@@ -32,6 +52,15 @@ def login():
 @login_required
 def logout():
     """User logout."""
+    # Log logout event
+    log_authentication_event(
+        'logout',
+        current_user.id,
+        request.remote_addr,
+        True,
+        f"User agent: {request.headers.get('User-Agent', 'Unknown')}"
+    )
+    
     logout_user()
     flash('You have been logged out.', 'info')
     return redirect(url_for('auth.login'))
@@ -46,14 +75,41 @@ def change_password():
         confirm_password = request.form.get('confirm_password')
         
         if not current_user.check_password(current_password):
+            log_security_event(
+                'password_change_failed',
+                f"Current password incorrect for user {current_user.id}",
+                current_user.id,
+                request.remote_addr
+            )
             flash('Current password is incorrect', 'error')
         elif new_password != confirm_password:
+            log_security_event(
+                'password_change_failed',
+                f"Password confirmation mismatch for user {current_user.id}",
+                current_user.id,
+                request.remote_addr
+            )
             flash('New passwords do not match', 'error')
         elif len(new_password) < 8:
+            log_security_event(
+                'password_change_failed',
+                f"Password too short for user {current_user.id}",
+                current_user.id,
+                request.remote_addr
+            )
             flash('Password must be at least 8 characters long', 'error')
         else:
             current_user.set_password(new_password)
             db.session.commit()
+            
+            # Log successful password change
+            log_security_event(
+                'password_changed',
+                f"Password changed successfully for user {current_user.id}",
+                current_user.id,
+                request.remote_addr
+            )
+            
             flash('Password changed successfully', 'success')
             return redirect(url_for('main.index'))
     
@@ -85,6 +141,14 @@ def create_admin():
     
     db.session.add(admin)
     db.session.commit()
+    
+    # Log admin user creation
+    log_security_event(
+        'admin_created',
+        f"Admin user created: {admin_email}",
+        None,
+        request.remote_addr
+    )
     
     flash(f'Admin user created: {admin_email}', 'success')
     return redirect(url_for('auth.login'))

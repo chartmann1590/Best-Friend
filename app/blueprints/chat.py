@@ -2,7 +2,9 @@ from flask import Blueprint, request, jsonify, Response, stream_template, curren
 from flask_login import login_required, current_user
 from app import db, limiter
 from app.models import Message, Memory
+from app.logging_config import log_ai_interaction, log_content_filter_event, log_error, log_performance
 import json
+import time
 
 chat_bp = Blueprint('chat', __name__)
 
@@ -11,59 +13,88 @@ chat_bp = Blueprint('chat', __name__)
 @limiter.limit("50 per minute")
 def chat():
     """Handle chat messages."""
-    data = request.get_json()
-    message = data.get('message', '').strip()
+    start_time = time.time()
     
-    if not message:
-        return jsonify({'error': 'Message is required'}), 400
-    
-    # Content filtering
-    content_filter = current_app.content_filter
-    filter_result = content_filter.filter_content(message, current_user.id)
-    
-    if filter_result['blocked']:
-        return jsonify({
-            'error': 'Content blocked for safety',
-            'reason': filter_result['blocked_reason']
-        }), 400
-    
-    # Save user message
-    user_message = Message(
-        user_id=current_user.id,
-        role='user',
-        content=message
-    )
-    db.session.add(user_message)
-    db.session.commit()
-    
-    # Generate AI response using Ollama
-    prompt_service = current_app.prompt_service
-    system_prompt = prompt_service.build_chat_prompt(current_user.id, message)
-    
-    # Get AI response from Ollama
-    ollama_client = current_app.ollama_client
-    ai_response = ollama_client.generate_response(system_prompt)
-    
-    # Create memory from this conversation turn
-    if current_app.memory_service:
-        current_app.memory_service.create_conversation_memory(
+    try:
+        data = request.get_json()
+        message = data.get('message', '').strip()
+        
+        if not message:
+            return jsonify({'error': 'Message is required'}), 400
+        
+        # Content filtering
+        content_filter = current_app.content_filter
+        filter_result = content_filter.filter_content(message, current_user.id)
+        
+        # Log content filter result
+        log_content_filter_event(
             current_user.id, 
-            [user_message]
+            message[:100] + "..." if len(message) > 100 else message, 
+            filter_result
         )
-    
-    # Save AI response
-    assistant_message = Message(
-        user_id=current_user.id,
-        role='assistant',
-        content=ai_response
-    )
-    db.session.add(assistant_message)
-    db.session.commit()
-    
-    return jsonify({
-        'response': ai_response,
-        'message_id': assistant_message.id
-    })
+        
+        if filter_result['blocked']:
+            log_error(
+                Exception("Content blocked"), 
+                f"User {current_user.id} attempted to send blocked content"
+            )
+            return jsonify({
+                'error': 'Content blocked for safety',
+                'reason': filter_result['blocked_reason']
+            }), 400
+        
+        # Save user message
+        user_message = Message(
+            user_id=current_user.id,
+            role='user',
+            content=message
+        )
+        db.session.add(user_message)
+        db.session.commit()
+        
+        # Generate AI response using Ollama
+        prompt_service = current_app.prompt_service
+        system_prompt = prompt_service.build_chat_prompt(current_user.id, message)
+        
+        # Get AI response from Ollama
+        ollama_client = current_app.ollama_client
+        ai_response = ollama_client.generate_response(system_prompt)
+        
+        # Create memory from this conversation turn
+        if current_app.memory_service:
+            current_app.memory_service.create_conversation_memory(
+                current_user.id, 
+                [user_message]
+            )
+        
+        # Save AI response
+        assistant_message = Message(
+            user_id=current_user.id,
+            role='assistant',
+            content=ai_response
+        )
+        db.session.add(assistant_message)
+        db.session.commit()
+        
+        # Log AI interaction
+        log_ai_interaction(
+            'chat_completion',
+            current_user.id,
+            f"Message length: {len(message)}, Response length: {len(ai_response)}"
+        )
+        
+        # Log performance
+        duration = time.time() - start_time
+        log_performance('chat_request', duration, f"User: {current_user.id}")
+        
+        return jsonify({
+            'response': ai_response,
+            'message_id': assistant_message.id
+        })
+        
+    except Exception as e:
+        log_error(e, f"Chat endpoint error for user {current_user.id}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 @chat_bp.route('/stt', methods=['POST'])
 @login_required

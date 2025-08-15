@@ -2,8 +2,10 @@ from typing import List, Dict, Optional, Tuple
 from flask import current_app
 from app.models import Memory, Message
 from app import db
+from app.logging_config import log_memory_operation, log_performance, log_error
 import logging
 from datetime import datetime, timedelta
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -16,11 +18,16 @@ class MemoryService:
     def create_memory(self, user_id: int, content: str, memory_type: str = 'conversation',
                       importance: float = 1.0, metadata: Optional[Dict] = None) -> Optional[Memory]:
         """Create a new memory with embedding."""
+        start_time = time.time()
+        
         try:
             # Generate embedding for the content
             embedding = self._generate_embedding(content)
             if not embedding:
-                logger.warning(f"Failed to generate embedding for memory: {content[:100]}...")
+                log_error(
+                    Exception("Embedding generation failed"),
+                    f"Failed to generate embedding for memory: {content[:100]}..."
+                )
                 return None
             
             # Create memory
@@ -36,17 +43,29 @@ class MemoryService:
             db.session.add(memory)
             db.session.commit()
             
-            logger.info(f"Created memory for user {user_id}: {memory_type}")
+            # Log memory creation
+            log_memory_operation(
+                'create',
+                user_id,
+                f"Type: {memory_type}, Importance: {importance}, Content length: {len(content)}"
+            )
+            
+            # Log performance
+            duration = time.time() - start_time
+            log_performance('memory_creation', duration, f"User: {user_id}, Type: {memory_type}")
+            
             return memory
             
         except Exception as e:
-            logger.error(f"Error creating memory: {str(e)}")
+            log_error(e, f"Error creating memory for user {user_id}")
             db.session.rollback()
             return None
     
     def search_memories(self, user_id: int, query: str, limit: int = 10, 
                        threshold: float = 0.7) -> List[Tuple[Memory, float]]:
         """Search memories using vector similarity."""
+        start_time = time.time()
+        
         try:
             # Generate embedding for query
             query_embedding = self._generate_embedding(query)
@@ -70,10 +89,21 @@ class MemoryService:
             # Sort by similarity score (highest first)
             results.sort(key=lambda x: x[1], reverse=True)
             
+            # Log memory search
+            log_memory_operation(
+                'search',
+                user_id,
+                f"Query: {query[:50]}..., Results: {len(results)}, Threshold: {threshold}"
+            )
+            
+            # Log performance
+            duration = time.time() - start_time
+            log_performance('memory_search', duration, f"User: {user_id}, Results: {len(results)}")
+            
             return results
             
         except Exception as e:
-            logger.error(f"Error searching memories: {str(e)}")
+            log_error(e, f"Error searching memories for user {user_id}")
             return []
     
     def get_recent_memories(self, user_id: int, days: int = 7, limit: int = 20) -> List[Memory]:

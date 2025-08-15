@@ -23,6 +23,10 @@ def create_app(config_name=None):
     
     app.config.from_object(f'app.config.{config_name.capitalize()}Config')
     
+    # Setup comprehensive logging
+    from app.logging_config import setup_logging
+    setup_logging(app)
+    
     # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
@@ -61,5 +65,16 @@ def create_app(config_name=None):
     # Initialize CLI commands
     from app.cli import init_app as init_cli
     init_cli(app)
+    
+    # Add request logging middleware
+    from app.logging_config import log_request_start, log_request_end
+    
+    @app.before_request
+    def before_request():
+        log_request_start()
+    
+    @app.after_request
+    def after_request(response):
+        return log_request_end(response)
     
     return app

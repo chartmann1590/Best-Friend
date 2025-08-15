@@ -2,7 +2,9 @@ import requests
 import json
 from typing import List, Dict, Optional
 from flask import current_app
+from app.logging_config import log_ai_interaction, log_performance, log_error
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -16,10 +18,11 @@ class OllamaClient:
     def generate_response(self, prompt: str, model: Optional[str] = None, 
                          temperature: float = 0.7, top_p: float = 0.9) -> str:
         """Generate response from Ollama LLM."""
+        start_time = time.time()
         model = model or self.default_model
         
         try:
-            payload = {
+                        payload = {
                 "model": model,
                 "prompt": prompt,
                 "stream": False,

@@ -6,6 +6,7 @@ from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
 import redis
 from rq import Queue
+from app.logging_config import log_rate_limit_event
 
 # Initialize extensions
 db = SQLAlchemy()
@@ -29,8 +30,19 @@ def init_extensions(app):
     login_manager.login_message = 'Please log in to access this page.'
     login_manager.login_message_category = 'info'
     
-    # Flask-Limiter
+    # Flask-Limiter with custom handler
     limiter.init_app(app)
+    
+    # Custom rate limit handler
+    @limiter.request_filter
+    def ip_whitelist():
+        # Add any IP whitelist logic here if needed
+        return False
+    
+    @limiter.request_filter
+    def log_rate_limits():
+        # This will be called for every request
+        return False
     
     # Flask-Migrate
     migrate.init_app(app, db)

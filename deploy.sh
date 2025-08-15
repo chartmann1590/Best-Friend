@@ -59,7 +59,9 @@ if ! grep -q "FERNET_KEY=" .env || grep -q "your-fernet-key-here" .env; then
         FERNET_KEY=$(openssl rand -base64 32)
         echo "✅ Fernet key generated using OpenSSL"
     fi
-    sed -i.bak "s/FERNET_KEY=.*/FERNET_KEY=$FERNET_KEY/" .env
+    # Escape special characters in the key for sed
+    ESCAPED_FERNET_KEY=$(echo "$FERNET_KEY" | sed 's/[[\.*^$()+?{|]/\\&/g')
+    sed -i.bak "s/FERNET_KEY=.*/FERNET_KEY=$ESCAPED_FERNET_KEY/" .env
 fi
 
 # Generate secret key if not present
