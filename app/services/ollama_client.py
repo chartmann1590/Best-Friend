@@ -22,7 +22,7 @@ class OllamaClient:
         model = model or self.default_model
         
         try:
-                        payload = {
+            payload = {
                 "model": model,
                 "prompt": prompt,
                 "stream": False,
