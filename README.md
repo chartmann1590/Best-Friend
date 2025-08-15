@@ -100,7 +100,7 @@ git clone https://github.com/chartmann1590/Best-Friend.git && cd Best-Friend && 
 - **PostgreSQL**: Database with pgvector extension
 - **Redis**: Caching and rate limiting
 - **OpenTTS**: Text-to-speech service
-- **Ollama**: LLM inference server
+- **Ollama**: Remote LLM inference server (user-configured)
 
 ### Key Components
 
@@ -124,8 +124,8 @@ FERNET_KEY=your-fernet-key
 # Database
 DATABASE_URL=postgresql://user:pass@host:port/db
 
-# Ollama Configuration
-OLLAMA_BASE_URL=http://ollama:11434
+# Ollama Configuration (Remote)
+OLLAMA_BASE_URL=http://your-ollama-server:11434
 OLLAMA_MODEL=llama3.1:8b
 EMBED_MODEL=nomic-embed-text
 
@@ -133,6 +133,14 @@ EMBED_MODEL=nomic-embed-text
 TTS_URL=http://opentts:5500
 TTS_VOICE=en_US-amy-low
 ```
+
+### Ollama Configuration
+
+**Important**: This application uses a remote Ollama server. You need to:
+
+1. **Set up Ollama** on a separate server/machine
+2. **Configure the URL** in the settings (e.g., `http://your-server:11434`)
+3. **Ensure network access** between this app and your Ollama server
 
 ### Settings
 

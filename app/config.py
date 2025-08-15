@@ -8,8 +8,8 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'postgresql://bestfriend:bestfriend@localhost:5432/bestfriend'
     REDIS_URL = os.environ.get('REDIS_URL') or 'redis://localhost:6379/0'
     
-    # Ollama Configuration
-    OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL') or 'http://localhost:11434'
+    # Ollama Configuration (Remote)
+    OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL') or 'http://your-ollama-server:11434'
     OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL') or 'llama3.1:8b'
     EMBED_MODEL = os.environ.get('EMBED_MODEL') or 'nomic-embed-text'
     

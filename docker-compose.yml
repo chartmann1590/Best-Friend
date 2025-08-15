@@ -73,22 +73,12 @@ services:
     networks:
       - bestfriend-network
 
-  ollama:
-    image: ollama/ollama:latest
-    container_name: bestfriend-ollama
-    restart: unless-stopped
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    networks:
-      - bestfriend-network
+
 
 volumes:
   postgres_data:
   redis_data:
   opentts_data:
-  ollama_data:
 
 networks:
   bestfriend-network:
