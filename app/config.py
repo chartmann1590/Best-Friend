@@ -52,3 +52,13 @@ class TestingConfig(Config):
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = 'postgresql://bestfriend:bestfriend@localhost:5432/bestfriend_test'
     WTF_CSRF_ENABLED = False
+    
+    # Test-specific security keys (32-byte base64-encoded)
+    # This is a valid base64-encoded 32-byte key for testing only
+    FERNET_KEY = 'if9rlP7+8WlMsXPdmS7M7/dKzGeQM295muBhQ+HnyAY='
+    SECRET_KEY = 'dGVzdC1zZWNyZXQta2V5LXRlc3Rpbmctb25seS1ub3QtcHJvZHVjdGlvbg=='
+    
+    # Test-specific service configurations
+    OLLAMA_BASE_URL = 'http://localhost:11434'  # Mock URL for testing
+    TTS_URL = 'http://localhost:5500'  # Mock URL for testing
+    REDIS_URL = 'redis://localhost:6379/0'  # Test Redis instance
