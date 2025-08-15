@@ -49,9 +49,17 @@ fi
 # Generate Fernet key if not present
 if ! grep -q "FERNET_KEY=" .env || grep -q "your-fernet-key-here" .env; then
     echo "🔑 Generating Fernet key..."
-    FERNET_KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+    # Try to use Python3 with cryptography, fallback to openssl if not available
+    if python3 -c "import cryptography.fernet" 2>/dev/null; then
+        FERNET_KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+        echo "✅ Fernet key generated using Python cryptography"
+    else
+        echo "⚠️  Python cryptography module not available, using OpenSSL fallback..."
+        # Generate a 32-byte key using OpenSSL and base64 encode it
+        FERNET_KEY=$(openssl rand -base64 32)
+        echo "✅ Fernet key generated using OpenSSL"
+    fi
     sed -i.bak "s/FERNET_KEY=.*/FERNET_KEY=$FERNET_KEY/" .env
-    echo "✅ Fernet key generated"
 fi
 
 # Generate secret key if not present
@@ -83,7 +91,8 @@ echo ""
 echo "🎉 Deployment complete!"
 echo ""
 echo "📱 Access your Best Friend AI Companion at:"
-echo "   https://localhost"
+echo "   https://$(hostname -I | awk '{print $1}' | head -1)"
+echo "   or https://localhost"
 echo ""
 echo "🔧 Admin credentials (from .env file):"
 echo "   Email: $(grep ADMIN_EMAIL .env | cut -d'=' -f2)"
