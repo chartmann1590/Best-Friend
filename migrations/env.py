@@ -72,8 +72,15 @@ def run_migrations_online() -> None:
         # Update Alembic config with database URL
         config.set_main_option("sqlalchemy.url", database_url)
         
+        # Create engine configuration manually to avoid configparser issues
+        engine_config = {
+            'sqlalchemy.url': database_url,
+            'sqlalchemy.echo': False,
+            'sqlalchemy.poolclass': 'sqlalchemy.pool.NullPool'
+        }
+        
         connectable = engine_from_config(
-            config.get_section(config.config_ini_section, {}),
+            engine_config,
             prefix="sqlalchemy.",
             poolclass=pool.NullPool,
         )
