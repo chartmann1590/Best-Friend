@@ -3,6 +3,8 @@ from flask_login import login_required, current_user
 from app import db, limiter
 from app.models import Message, Memory
 from app.logging_config import log_ai_interaction, log_content_filter_event, log_error, log_performance
+from flask_wtf.csrf import validate_csrf
+from werkzeug.exceptions import BadRequest
 import json
 import time
 
@@ -16,6 +18,16 @@ def chat():
     start_time = time.time()
     
     try:
+        # Validate CSRF token from headers (for AJAX requests)
+        csrf_token = request.headers.get('X-CSRFToken') or request.form.get('csrf_token')
+        if not csrf_token:
+            return jsonify({'error': 'CSRF token missing'}), 400
+        
+        try:
+            validate_csrf(csrf_token)
+        except BadRequest:
+            return jsonify({'error': 'CSRF token validation failed'}), 400
+        
         data = request.get_json()
         message = data.get('message', '').strip()
         
@@ -101,6 +113,16 @@ def chat():
 @limiter.limit("30 per minute")
 def speech_to_text():
     """Convert speech to text."""
+    # Validate CSRF token from headers (for AJAX requests)
+    csrf_token = request.headers.get('X-CSRFToken') or request.form.get('csrf_token')
+    if not csrf_token:
+        return jsonify({'error': 'CSRF token missing'}), 400
+    
+    try:
+        validate_csrf(csrf_token)
+    except BadRequest:
+        return jsonify({'error': 'CSRF token validation failed'}), 400
+    
     if 'audio' not in request.files:
         return jsonify({'error': 'No audio file provided'}), 400
     

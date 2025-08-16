@@ -2,6 +2,8 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from app.models import User, Setting
 from app import db
+from flask_wtf.csrf import validate_csrf
+from werkzeug.exceptions import BadRequest
 
 main_bp = Blueprint('main', __name__)
 
@@ -27,6 +29,13 @@ def onboarding_complete():
     """Complete onboarding process."""
     if not current_user.is_authenticated:
         return redirect(url_for('auth.login'))
+    
+    # Validate CSRF token
+    try:
+        validate_csrf(request.form.get('csrf_token'))
+    except BadRequest:
+        flash('CSRF token validation failed. Please try again.', 'error')
+        return redirect(url_for('main.onboarding'))
     
     # Save user profile
     current_user.name = request.form.get('name', '')
