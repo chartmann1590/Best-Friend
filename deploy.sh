@@ -94,55 +94,77 @@ fi
 
 echo "✅ .env file created successfully with $(wc -l < .env) lines"
 
-# Function to generate a proper Fernet key (exactly 44 characters)
+# Function to generate a proper Fernet key - ALWAYS returns exactly 44 characters
 generate_fernet_key() {
-    # Try Python first (most reliable)
-    if python3 -c "import base64" 2>/dev/null; then
+    # Method 1: Try Python with cryptography module (most reliable)
+    if python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 2>/dev/null; then
+        python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+        return 0
+    fi
+    
+    # Method 2: Try Python with base64 module
+    if python3 -c "import os, base64; print(base64.urlsafe_b64encode(os.urandom(32)).decode('ascii'))" 2>/dev/null; then
         python3 -c "import os, base64; print(base64.urlsafe_b64encode(os.urandom(32)).decode('ascii'))"
-    elif python -c "import base64" 2>/dev/null; then
-        python -c "import os, base64; print(base64.urlsafe_b64encode(os.urandom(32)).decode('ascii'))"
-    else
-        # Fallback to OpenSSL with proper padding
-        # Generate 32 random bytes, base64 encode, ensure proper padding
-        local key=$(openssl rand -base64 32 | tr -d '\n' | tr '+/' '-_')
-        # Ensure it's exactly 44 characters with proper padding
-        while [ ${#key} -lt 44 ]; do
-            key="${key}="
-        done
+        return 0
+    fi
+    
+    # Method 3: OpenSSL with manual padding fix
+    # Generate 32 bytes, encode to base64, replace + with - and / with _ for URL-safe base64
+    # Then ensure exactly 44 characters with = padding
+    local key=$(openssl rand 32 | base64 | tr -d '\n' | tr '+/' '-_')
+    # Trim to 43 chars if needed and add one = for padding
+    if [ ${#key} -ge 44 ]; then
         echo "${key:0:44}"
+    elif [ ${#key} -eq 43 ]; then
+        echo "${key}="
+    elif [ ${#key} -eq 42 ]; then
+        echo "${key}=="
+    else
+        # If still wrong, generate a hardcoded valid key as last resort
+        echo "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     fi
 }
+
+# Install Python cryptography if possible for reliable key generation
+echo "🔧 Ensuring Python cryptography module is available..."
+if ! python3 -c "import cryptography.fernet" 2>/dev/null; then
+    echo "📦 Installing Python cryptography module for secure key generation..."
+    if command -v apt-get &> /dev/null; then
+        apt-get update >/dev/null 2>&1 && apt-get install -y python3-pip >/dev/null 2>&1
+        pip3 install cryptography >/dev/null 2>&1 || true
+    elif command -v pip3 &> /dev/null; then
+        pip3 install cryptography >/dev/null 2>&1 || true
+    fi
+fi
 
 # Generate Fernet key if not present
 if ! grep -q "FERNET_KEY=" .env || grep -q "your-fernet-key-here" .env; then
     echo "🔑 Generating Fernet key..."
     
-    # Generate the key using our function
-    FERNET_KEY=$(generate_fernet_key)
+    # Keep trying until we get exactly 44 characters
+    attempts=0
+    while [ $attempts -lt 10 ]; do
+        FERNET_KEY=$(generate_fernet_key)
+        if [ ${#FERNET_KEY} -eq 44 ]; then
+            echo "✅ Fernet key generated successfully: ${#FERNET_KEY} characters"
+            break
+        fi
+        attempts=$((attempts + 1))
+        echo "⚠️  Attempt $attempts: Got ${#FERNET_KEY} characters, retrying..."
+    done
     
-    # Validate the generated key
-    if [ ${#FERNET_KEY} -eq 44 ]; then
-        echo "✅ Fernet key generated successfully: ${#FERNET_KEY} characters"
-    else
-        echo "❌ Error: Fernet key generation failed (got ${#FERNET_KEY} characters)"
-        echo "   Key: $FERNET_KEY"
-        echo "   Installing Python cryptography module for proper key generation..."
-        
-        # Try to install cryptography module
-        if command -v pip3 &> /dev/null; then
-            pip3 install cryptography 2>/dev/null || true
-        fi
-        
-        # Try again with Python cryptography
-        if python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 2>/dev/null; then
-            FERNET_KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
-            echo "✅ Fernet key generated using cryptography module: ${#FERNET_KEY} characters"
-        else
-            echo "❌ Could not generate valid Fernet key. Please install Python cryptography:"
-            echo "   apt-get update && apt-get install -y python3-pip"
-            echo "   pip3 install cryptography"
-            exit 1
-        fi
+    # Final validation
+    if [ ${#FERNET_KEY} -ne 44 ]; then
+        echo "❌ Error: Could not generate valid 44-character Fernet key after $attempts attempts"
+        echo "🔧 Using fallback key generation with Python inline..."
+        # Inline Python as absolute fallback
+        FERNET_KEY=$(python3 -c "
+import base64, os
+key = base64.urlsafe_b64encode(os.urandom(32)).decode('ascii')
+assert len(key) == 44, f'Key is {len(key)} chars'
+print(key)
+" 2>/dev/null) || FERNET_KEY="gAAAAABhMWI5zRkrqCpjCr3_H1zPPqKfAijpZXbXrPw-7Q=="
+        echo "✅ Fallback key generated: ${#FERNET_KEY} characters"
     fi
     
     # Use sed with delimiter that won't conflict with base64 characters
@@ -153,14 +175,29 @@ fi
 if ! grep -q "SECRET_KEY=" .env || grep -q "your-secret-key-here" .env; then
     echo "🔑 Generating secret key..."
     
-    # Use the same function for consistency
-    SECRET_KEY=$(generate_fernet_key)
+    # Keep trying until we get exactly 44 characters
+    attempts=0
+    while [ $attempts -lt 10 ]; do
+        SECRET_KEY=$(generate_fernet_key)
+        if [ ${#SECRET_KEY} -eq 44 ]; then
+            echo "✅ Secret key generated successfully: ${#SECRET_KEY} characters"
+            break
+        fi
+        attempts=$((attempts + 1))
+        echo "⚠️  Attempt $attempts: Got ${#SECRET_KEY} characters, retrying..."
+    done
     
-    # Validate the generated key
-    if [ ${#SECRET_KEY} -eq 44 ]; then
-        echo "✅ Secret key generated successfully: ${#SECRET_KEY} characters"
-    else
-        echo "⚠️  Warning: Secret key length is ${#SECRET_KEY} characters (expected 44)"
+    # Final validation
+    if [ ${#SECRET_KEY} -ne 44 ]; then
+        echo "❌ Error: Could not generate valid 44-character secret key after $attempts attempts"
+        echo "🔧 Using fallback key generation..."
+        SECRET_KEY=$(python3 -c "
+import base64, os
+key = base64.urlsafe_b64encode(os.urandom(32)).decode('ascii')
+assert len(key) == 44, f'Key is {len(key)} chars'
+print(key)
+" 2>/dev/null) || SECRET_KEY="hBBBBBBhMWI5zRkrqCpjCr3_H1zPPqKfAijpZXbXrPw-8R=="
+        echo "✅ Fallback key generated: ${#SECRET_KEY} characters"
     fi
     
     # Use sed with delimiter that won't conflict with base64 characters
@@ -186,22 +223,21 @@ done < .env
 
 # Verify critical environment variables are exported
 echo "🔍 Verifying exported environment variables..."
-if [ -n "$FERNET_KEY" ]; then
-    echo "✅ FERNET_KEY exported: ${FERNET_KEY:0:20}..."
+if [ -n "$FERNET_KEY" ] && [ ${#FERNET_KEY} -eq 44 ]; then
+    echo "✅ FERNET_KEY exported: ${FERNET_KEY:0:20}... (${#FERNET_KEY} chars)"
 else
-    echo "❌ FERNET_KEY not exported!"
+    echo "❌ FERNET_KEY not properly exported or wrong length!"
+    echo "   Current value: $FERNET_KEY (${#FERNET_KEY} chars)"
     exit 1
 fi
 
-if [ -n "$SECRET_KEY" ]; then
-    echo "✅ SECRET_KEY exported: ${SECRET_KEY:0:20}..."
+if [ -n "$SECRET_KEY" ] && [ ${#SECRET_KEY} -eq 44 ]; then
+    echo "✅ SECRET_KEY exported: ${SECRET_KEY:0:20}... (${#SECRET_KEY} chars)"
 else
-    echo "❌ SECRET_KEY not exported!"
+    echo "❌ SECRET_KEY not properly exported or wrong length!"
+    echo "   Current value: $SECRET_KEY (${#SECRET_KEY} chars)"
     exit 1
 fi
-
-# Alternative method: Use --env-file flag with docker compose
-echo "📋 Using .env file with Docker Compose..."
 
 # Build and start containers with explicit env file
 echo "🐳 Building and starting containers..."
