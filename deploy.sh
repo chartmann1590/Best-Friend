@@ -39,12 +39,46 @@ if [ -d .git ]; then
     git pull origin main || git pull origin master || echo "⚠️  Could not pull latest changes"
 fi
 
-# Create .env file if it doesn't exist
-if [ ! -f .env ]; then
-    echo "📝 Creating .env file from template..."
-    cp env.example .env
-    echo "⚠️  Please review and update .env file with your configuration"
-fi
+# Remove old .env file and create fresh one every time
+echo "🗑️  Removing old .env file..."
+rm -f .env
+
+echo "📝 Creating fresh .env file..."
+cat > .env << 'EOF'
+# Best Friend AI Companion Environment Configuration
+# Generated automatically by deploy.sh - DO NOT EDIT MANUALLY
+
+# Database Configuration
+DATABASE_URL=postgresql://bestfriend:bestfriend@localhost:5432/bestfriend
+REDIS_URL=redis://localhost:6379/0
+
+# Ollama Configuration (Remote)
+OLLAMA_BASE_URL=http://your-ollama-server:11434
+OLLAMA_MODEL=llama3.1:8b
+EMBED_MODEL=nomic-embed-text
+
+# TTS Configuration
+TTS_URL=http://localhost:5500
+TTS_VOICE=en_US-amy-low
+
+# STT Configuration
+STT_LANGUAGE=en
+
+# Security Keys (will be generated automatically)
+FERNET_KEY=your-fernet-key-here
+SECRET_KEY=your-secret-key-here
+
+# Application Settings
+DEBUG=false
+LOG_LEVEL=INFO
+MAX_UPLOAD_SIZE=16777216
+RATE_LIMIT_PER_MINUTE=60
+RATE_LIMIT_PER_HOUR=1000
+
+# Admin User (will be created automatically)
+ADMIN_EMAIL=admin@bestfriend.local
+ADMIN_PASSWORD=admin123
+EOF
 
 # Generate Fernet key if not present
 if ! grep -q "FERNET_KEY=" .env || grep -q "your-fernet-key-here" .env; then
@@ -90,9 +124,12 @@ fi
 # Load environment variables for Docker Compose
 echo "🔧 Loading environment variables..."
 
-# Debug: Show .env file contents (without showing full keys)
-echo "📋 .env file contents:"
+# Debug: Show .env file contents and line count
+echo "📋 .env file contents (${#FERNET_KEY} chars for FERNET_KEY, ${#SECRET_KEY} chars for SECRET_KEY):"
+echo "📄 .env file line count: $(wc -l < .env)"
 grep -E "^(FERNET_KEY|SECRET_KEY)=" .env | sed 's/=.*/=***HIDDEN***/'
+echo "🔍 Full .env file:"
+cat .env
 
 # Load environment variables
 set -a  # automatically export all variables
