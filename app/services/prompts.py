@@ -34,18 +34,20 @@ class PromptService:
             if ai_context:
                 prompt_parts.append(f"\n{ai_context}")
             
-            # 3. User profile context
+            # 3. User profile context (HIGH PRIORITY - ALWAYS USE THIS)
             user_context = self._build_user_context(user)
             if user_context:
                 prompt_parts.append(f"\n{user_context}")
+                # Add explicit instruction to prioritize current profile
+                prompt_parts.append(f"\nIMPORTANT: The above user information is CURRENT and ACCURATE. Always use this information over any conflicting details from memories or conversations.")
             
             # 4. Recent conversation context
             conversation_context = self._build_conversation_context(user_id)
             if conversation_context:
                 prompt_parts.append(f"\n{conversation_context}")
             
-            # 5. Relevant memories
-            memory_context = self._build_memory_context(user_id, current_message)
+            # 5. Relevant memories (FILTERED to avoid conflicts)
+            memory_context = self._build_memory_context(user_id, current_message, user)
             if memory_context:
                 prompt_parts.append(f"\n{memory_context}")
             
@@ -174,8 +176,8 @@ Guidelines:
             logger.error(f"Error getting conversation summary: {str(e)}")
             return ""
     
-    def _build_memory_context(self, user_id: int, current_message: str) -> str:
-        """Build context from relevant memories."""
+    def _build_memory_context(self, user_id: int, current_message: str, user: User) -> str:
+        """Build context from relevant memories, filtering out conflicting information."""
         try:
             if not current_message:
                 return ""
@@ -193,14 +195,24 @@ Guidelines:
                 return ""
             
             context_parts = ["Relevant memories and context:"]
+            filtered_memories = []
+            
+            # Filter out memories that conflict with current user profile
             for memory, similarity in relevant_memories:
+                content = memory.content.lower()
+                
+                # Skip memories that contain old/conflicting user information
+                if self._is_conflicting_memory(content, user):
+                    continue
+                
                 # Truncate long memories for context
-                content = memory.content[:150] + "..." if len(memory.content) > 150 else memory.content
+                display_content = memory.content[:150] + "..." if len(memory.content) > 150 else memory.content
                 memory_type = memory.memory_type or "general"
-                context_parts.append(f"- [{memory_type}] {content} (relevance: {similarity:.2f})")
+                context_parts.append(f"- [{memory_type}] {display_content} (relevance: {similarity:.2f})")
+                filtered_memories.append((memory, similarity))
             
             # Add general user context memories if no specific ones found
-            if len(relevant_memories) < 2:
+            if len(filtered_memories) < 2:
                 general_memories = memory_service.search_memories(
                     user_id=user_id,
                     query="user preferences facts important",
@@ -209,14 +221,38 @@ Guidelines:
                 )
                 for memory, similarity in general_memories:
                     if similarity > 0.4:  # Only add if reasonably relevant
-                        content = memory.content[:100] + "..." if len(memory.content) > 100 else memory.content
-                        context_parts.append(f"- [general] {content}")
+                        content = memory.content.lower()
+                        if not self._is_conflicting_memory(content, user):
+                            display_content = memory.content[:100] + "..." if len(memory.content) > 100 else memory.content
+                            context_parts.append(f"- [general] {display_content}")
             
             return "\n".join(context_parts)
             
         except Exception as e:
             logger.error(f"Error building memory context: {str(e)}")
             return ""
+    
+    def _is_conflicting_memory(self, content: str, user: User) -> bool:
+        """Check if a memory contains information that conflicts with current user profile."""
+        content_lower = content.lower()
+        
+        # Check for old/conflicting user names
+        conflicting_names = [
+            'administrator', 'admin', 'default user', 'unknown user',
+            'test user', 'demo user', 'placeholder'
+        ]
+        
+        for name in conflicting_names:
+            if name in content_lower:
+                return True
+        
+        # Check for old user information that might conflict
+        if user.name and user.name.lower() != 'administrator':
+            # If memory mentions "administrator" but user has a different name, it's conflicting
+            if 'administrator' in content_lower:
+                return True
+        
+        return False
     
     def _get_time_context(self, user_id: int) -> str:
         """Get current time context for the user's timezone."""
@@ -349,15 +385,16 @@ Guidelines:
         return """
 Response Guidelines:
 - Keep responses conversational and engaging
-- Use the user's name when appropriate and natural
-- Reference relevant memories and past conversations when helpful
+- ALWAYS use the user's CURRENT name from their profile - never use old names like 'administrator'
+- Reference relevant memories when helpful, but prioritize current profile information
 - Ask thoughtful follow-up questions to continue the conversation
 - Be concise but thorough and helpful
 - Show empathy and understanding based on user's context
 - Maintain a consistent, friendly tone that matches your personality
 - Consider the user's timezone and preferences when relevant
 - Adapt your communication style to match the user's preferences
-- Be genuine and authentic in your responses"""
+- Be genuine and authentic in your responses
+- CRITICAL: If you see conflicting information between current profile and memories, ALWAYS use the current profile"""
     
     def build_chat_prompt(self, user_id: int, user_message: str) -> str:
         """Build a prompt specifically for chat responses."""
