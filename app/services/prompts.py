@@ -29,26 +29,31 @@ class PromptService:
             prompt_parts.append(self._get_base_instructions())
             prompt_parts.append(f"\n{personality}")
             
-            # 2. User profile context
+            # 2. AI personality and capabilities
+            ai_context = self._build_ai_context(user_id)
+            if ai_context:
+                prompt_parts.append(f"\n{ai_context}")
+            
+            # 3. User profile context
             user_context = self._build_user_context(user)
             if user_context:
                 prompt_parts.append(f"\n{user_context}")
             
-            # 3. Recent conversation context
+            # 4. Recent conversation context
             conversation_context = self._build_conversation_context(user_id)
             if conversation_context:
                 prompt_parts.append(f"\n{conversation_context}")
             
-            # 4. Relevant memories
+            # 5. Relevant memories
             memory_context = self._build_memory_context(user_id, current_message)
             if memory_context:
                 prompt_parts.append(f"\n{memory_context}")
             
-            # 5. Current message context
+            # 6. Current message context
             if current_message:
                 prompt_parts.append(f"\nCurrent user message: {current_message}")
             
-            # 6. Response guidelines
+            # 7. Response guidelines
             prompt_parts.append(self._get_response_guidelines())
             
             return "\n".join(prompt_parts)
@@ -99,10 +104,15 @@ Guidelines:
         if user.bio:
             context_parts.append(f"User's bio: {user.bio}")
         
-        # Get user preferences
+        # Get user preferences and settings
         preferences = self._get_user_preferences(user.id)
         if preferences:
             context_parts.append(f"User preferences: {preferences}")
+        
+        # Get additional user settings for context
+        additional_context = self._get_additional_user_context(user.id)
+        if additional_context:
+            context_parts.extend(additional_context)
         
         if context_parts:
             return "User Information:\n" + "\n".join(f"- {part}" for part in context_parts)
@@ -123,15 +133,45 @@ Guidelines:
             # Reverse to get chronological order
             recent_messages.reverse()
             
-            context_parts = ["Recent conversation:"]
+            context_parts = ["Recent conversation context:"]
             for msg in recent_messages:
                 role = "User" if msg.role == "user" else "You"
-                context_parts.append(f"{role}: {msg.content}")
+                # Truncate very long messages for context
+                content = msg.content[:200] + "..." if len(msg.content) > 200 else msg.content
+                context_parts.append(f"{role}: {content}")
+            
+            # Add conversation summary if available
+            conversation_summary = self._get_conversation_summary(user_id)
+            if conversation_summary:
+                context_parts.append(f"\nConversation summary: {conversation_summary}")
             
             return "\n".join(context_parts)
             
         except Exception as e:
             logger.error(f"Error building conversation context: {str(e)}")
+            return ""
+    
+    def _get_conversation_summary(self, user_id: int) -> str:
+        """Get a summary of the current conversation session."""
+        try:
+            # Look for recent conversation summary in memories
+            memory_service = current_app.memory_service
+            recent_memories = memory_service.search_memories(
+                user_id=user_id,
+                query="conversation summary",
+                limit=1,
+                threshold=0.5
+            )
+            
+            if recent_memories:
+                memory, similarity = recent_memories[0]
+                if similarity > 0.7:  # Only use high-confidence summaries
+                    return memory.content
+            
+            return ""
+            
+        except Exception as e:
+            logger.error(f"Error getting conversation summary: {str(e)}")
             return ""
     
     def _build_memory_context(self, user_id: int, current_message: str) -> str:
@@ -146,20 +186,61 @@ Guidelines:
                 user_id=user_id,
                 query=current_message,
                 limit=self.max_memory_snippets,
-                threshold=0.6
+                threshold=0.5  # Lower threshold to get more context
             )
             
             if not relevant_memories:
                 return ""
             
-            context_parts = ["Relevant memories:"]
+            context_parts = ["Relevant memories and context:"]
             for memory, similarity in relevant_memories:
-                context_parts.append(f"- {memory.content} (relevance: {similarity:.2f})")
+                # Truncate long memories for context
+                content = memory.content[:150] + "..." if len(memory.content) > 150 else memory.content
+                memory_type = memory.memory_type or "general"
+                context_parts.append(f"- [{memory_type}] {content} (relevance: {similarity:.2f})")
+            
+            # Add general user context memories if no specific ones found
+            if len(relevant_memories) < 2:
+                general_memories = memory_service.search_memories(
+                    user_id=user_id,
+                    query="user preferences facts important",
+                    limit=2,
+                    threshold=0.3
+                )
+                for memory, similarity in general_memories:
+                    if similarity > 0.4:  # Only add if reasonably relevant
+                        content = memory.content[:100] + "..." if len(memory.content) > 100 else memory.content
+                        context_parts.append(f"- [general] {content}")
             
             return "\n".join(context_parts)
             
         except Exception as e:
             logger.error(f"Error building memory context: {str(e)}")
+            return ""
+    
+    def _get_time_context(self, user_id: int) -> str:
+        """Get current time context for the user's timezone."""
+        try:
+            user = User.query.get(user_id)
+            if not user or not user.timezone or user.timezone == 'UTC':
+                return ""
+            
+            from datetime import datetime
+            import pytz
+            
+            # Get current time in user's timezone
+            user_tz = pytz.timezone(user.timezone)
+            current_time = datetime.now(user_tz)
+            
+            # Format time context
+            time_str = current_time.strftime("%I:%M %p")
+            day_str = current_time.strftime("%A")
+            date_str = current_time.strftime("%B %d, %Y")
+            
+            return f"Current time context: It's {time_str} on {day_str}, {date_str} in {user.timezone}"
+            
+        except Exception as e:
+            logger.error(f"Error getting time context: {str(e)}")
             return ""
     
     def _get_user_setting(self, user_id: int, key: str, default: str = "") -> str:
@@ -186,21 +267,106 @@ Guidelines:
             logger.error(f"Error getting user preferences: {str(e)}")
             return ""
     
+    def _get_additional_user_context(self, user_id: int) -> List[str]:
+        """Get additional user context from settings."""
+        try:
+            from app.models import Setting
+            context_parts = []
+            
+            # Get speaking rate preference
+            speaking_rate = self._get_user_setting(user_id, 'speaking_rate', '1.0')
+            if speaking_rate != '1.0':
+                context_parts.append(f"User prefers speech at {speaking_rate}x speed")
+            
+            # Get pitch preference
+            pitch = self._get_user_setting(user_id, 'pitch', '1.0')
+            if pitch != '1.0':
+                context_parts.append(f"User prefers voice pitch at {pitch}x")
+            
+            # Get memory preferences
+            memory_enabled = self._get_user_setting(user_id, 'memory_enabled', 'true')
+            if memory_enabled == 'true':
+                context_parts.append("User has long-term memory enabled")
+            
+            # Get auto-summarize preference
+            auto_summarize = self._get_user_setting(user_id, 'auto_summarize', 'true')
+            if auto_summarize == 'true':
+                context_parts.append("User has auto-summarization enabled")
+            
+            # Get timezone-specific context
+            user = User.query.get(user_id)
+            if user and user.timezone and user.timezone != 'UTC':
+                context_parts.append(f"User is in {user.timezone} timezone - consider local time for responses")
+            
+            return context_parts
+            
+        except Exception as e:
+            logger.error(f"Error getting additional user context: {str(e)}")
+            return []
+    
+    def _build_ai_context(self, user_id: int) -> str:
+        """Build context about the AI's capabilities and configuration."""
+        try:
+            context_parts = []
+            
+            # Get AI model information
+            ollama_model = self._get_user_setting(user_id, 'ollama_model', 'llama3.1:8b')
+            context_parts.append(f"AI Model: {ollama_model}")
+            
+            # Get AI capabilities
+            context_parts.append("AI Capabilities:")
+            context_parts.append("- Text generation and conversation")
+            context_parts.append("- Voice synthesis (TTS)")
+            context_parts.append("- Speech recognition (STT)")
+            context_parts.append("- Long-term memory and learning")
+            context_parts.append("- Contextual understanding")
+            
+            # Get AI personality traits
+            personality = self._get_user_setting(user_id, 'personality', '')
+            if personality:
+                context_parts.append(f"AI Personality: {personality}")
+            
+            # Get AI behavior settings
+            temperature = self._get_user_setting(user_id, 'temperature', '0.7')
+            top_p = self._get_user_setting(user_id, 'top_p', '0.9')
+            context_parts.append(f"AI Response Style: Temperature {temperature}, Top-P {top_p}")
+            
+            # Get AI voice settings
+            tts_voice = self._get_user_setting(user_id, 'tts_voice', 'en_US-amy-low')
+            context_parts.append(f"AI Voice: {tts_voice}")
+            
+            if context_parts:
+                return "AI Information:\n" + "\n".join(f"- {part}" for part in context_parts)
+            
+            return ""
+            
+        except Exception as e:
+            logger.error(f"Error building AI context: {str(e)}")
+            return ""
+    
     def _get_response_guidelines(self) -> str:
         """Get guidelines for AI responses."""
         return """
 Response Guidelines:
 - Keep responses conversational and engaging
-- Use the user's name when appropriate
-- Reference relevant memories when helpful
-- Ask follow-up questions to continue the conversation
-- Be concise but thorough
-- Show empathy and understanding
-- Maintain a consistent, friendly tone"""
+- Use the user's name when appropriate and natural
+- Reference relevant memories and past conversations when helpful
+- Ask thoughtful follow-up questions to continue the conversation
+- Be concise but thorough and helpful
+- Show empathy and understanding based on user's context
+- Maintain a consistent, friendly tone that matches your personality
+- Consider the user's timezone and preferences when relevant
+- Adapt your communication style to match the user's preferences
+- Be genuine and authentic in your responses"""
     
     def build_chat_prompt(self, user_id: int, user_message: str) -> str:
         """Build a prompt specifically for chat responses."""
         system_prompt = self.build_system_prompt(user_id, user_message)
+        
+        # Add current time context if user has timezone set
+        time_context = self._get_time_context(user_id)
+        if time_context:
+            system_prompt += f"\n\n{time_context}"
         
         return f"{system_prompt}\n\nUser: {user_message}\n\nAssistant:"
     

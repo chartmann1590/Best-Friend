@@ -9,6 +9,7 @@ gunicorn
 psycopg2-binary
 redis
 requests
+pytz
 SQLAlchemy
 alembic
 pgvector
