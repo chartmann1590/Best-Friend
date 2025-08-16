@@ -342,7 +342,7 @@ document.addEventListener('DOMContentLoaded', function() {
             formData.append('ollama_url', url);
             formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
             
-            const response = await fetch('/api/test-ollama', {
+            const response = await fetch('{{ url_for("settings.test_ollama_connection") }}', {
                 method: 'POST',
                 body: formData
             });
@@ -379,7 +379,7 @@ document.addEventListener('DOMContentLoaded', function() {
             formData.append('ollama_url', url);
             formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
             
-            const response = await fetch('/api/test-ollama', {
+            const response = await fetch('{{ url_for("settings.test_ollama_connection") }}', {
                 method: 'POST',
                 body: formData
             });
@@ -454,7 +454,7 @@ document.addEventListener('DOMContentLoaded', function() {
             formData.append('tts_url', url);
             formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
             
-            const response = await fetch('/api/test-tts', {
+            const response = await fetch('{{ url_for("settings.test_tts_connection") }}', {
                 method: 'POST',
                 body: formData
             });
@@ -491,7 +491,7 @@ document.addEventListener('DOMContentLoaded', function() {
             formData.append('tts_url', url);
             formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
             
-            const response = await fetch('/api/test-tts', {
+            const response = await fetch('{{ url_for("settings.test_tts_connection") }}', {
                 method: 'POST',
                 body: formData
             });
