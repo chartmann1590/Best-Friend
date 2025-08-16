@@ -9,6 +9,86 @@ import json
 
 settings_bp = Blueprint('settings', __name__)
 
+def _parse_opentts_voice(voice_key: str, voice_info: dict) -> dict:
+    """Parse OpenTTS voice data from API response."""
+    try:
+        # voice_key format: "tts:voice" (e.g., "espeak:en", "flite:en-us")
+        # voice_info contains the voice details
+        
+        # Extract TTS system and voice name from key
+        if ':' in voice_key:
+            tts_system, voice_name = voice_key.split(':', 1)
+        else:
+            tts_system = 'unknown'
+            voice_name = voice_key
+        
+        # Get voice details from voice_info
+        language = voice_info.get('language', '')
+        locale = voice_info.get('locale', '')
+        gender = voice_info.get('gender', '')
+        
+        # Build display name
+        display_name = f"{tts_system}:{voice_name}"
+        if locale:
+            display_name += f" ({locale})"
+        if gender:
+            display_name += f" [{gender}]"
+        
+        # Build description
+        description_parts = []
+        if tts_system:
+            description_parts.append(f"TTS: {tts_system}")
+        if language:
+            description_parts.append(f"Language: {language}")
+        if locale:
+            description_parts.append(f"Locale: {locale}")
+        if gender:
+            description_parts.append(f"Gender: {gender}")
+        
+        description = " | ".join(description_parts) if description_parts else display_name
+        
+        return {
+            'id': voice_key,  # Use the full voice key as ID (e.g., "espeak:en")
+            'name': display_name,  # Human-readable display name
+            'language': language or 'Unknown',
+            'gender': gender or 'Unknown',
+            'description': description,
+            'tts_system': tts_system,
+            'voice_name': voice_name,
+            'locale': locale or ''
+        }
+        
+    except Exception as e:
+        print(f"Error parsing OpenTTS voice {voice_key}: {str(e)}")
+        return None
+
+def _parse_voice_data(voice: dict) -> dict:
+    """Parse voice data from generic TTS API response (fallback)."""
+    # Handle different field names that OpenTTS might use
+    voice_id = voice.get('id') or voice.get('name') or voice.get('voice_id') or ''
+    voice_name = voice.get('name') or voice.get('display_name') or voice_id or 'Unknown'
+    language = voice.get('language') or voice.get('lang') or voice.get('locale') or 'Unknown'
+    gender = voice.get('gender') or voice.get('sex') or 'Unknown'
+    description = voice.get('description') or voice.get('desc') or voice.get('comment') or ''
+    
+    # Clean up the data
+    if isinstance(voice_id, str):
+        voice_id = voice_id.strip()
+    if isinstance(voice_name, str):
+        voice_name = voice_name.strip()
+    if isinstance(gender, str):
+        gender = gender.strip()
+    if isinstance(description, str):
+        description = description.strip()
+    
+    return {
+        'id': voice_id,
+        'name': voice_name,
+        'language': language,
+        'gender': gender,
+        'description': description
+    }
+
 @settings_bp.route('/')
 @login_required
 def index():
@@ -133,7 +213,7 @@ def test_tts_connection():
             for voice_key, voice_info in voices_data.items():
                 # voice_key format: "tts:voice" (e.g., "espeak:en", "flite:en-us")
                 if isinstance(voice_info, dict):
-                    voice = self._parse_opentts_voice(voice_key, voice_info)
+                    voice = _parse_opentts_voice(voice_key, voice_info)
                     if voice:
                         voices.append(voice)
         
@@ -154,14 +234,12 @@ def test_tts_connection():
         return jsonify({
             'success': False,
             'error': f'Failed to connect to TTS server: {str(e)}'
-        }), 500
+        }), 400
     except Exception as e:
         return jsonify({
             'success': False,
             'error': f'Unexpected error: {str(e)}'
         }), 500
-
-    def _parse_opentts_voice(self, voice_key: str, voice_info: dict) -> dict:
         """Parse OpenTTS voice data from API response."""
         try:
             # voice_key format: "tts:voice" (e.g., "espeak:en", "flite:en-us")
@@ -213,33 +291,6 @@ def test_tts_connection():
         except Exception as e:
             print(f"Error parsing OpenTTS voice {voice_key}: {str(e)}")
             return None
-    
-    def _parse_voice_data(self, voice: dict) -> dict:
-        """Parse voice data from generic TTS API response (fallback)."""
-        # Handle different field names that OpenTTS might use
-        voice_id = voice.get('id') or voice.get('name') or voice.get('voice_id') or ''
-        voice_name = voice.get('name') or voice.get('display_name') or voice_id or 'Unknown'
-        language = voice.get('language') or voice.get('lang') or voice.get('locale') or 'Unknown'
-        gender = voice.get('gender') or voice.get('sex') or 'Unknown'
-        description = voice.get('description') or voice.get('desc') or voice.get('comment') or ''
-        
-        # Clean up the data
-        if isinstance(voice_id, str):
-            voice_id = voice_id.strip()
-        if isinstance(voice_name, str):
-            voice_name = voice_name.strip()
-        if isinstance(gender, str):
-            gender = gender.strip()
-        if isinstance(description, str):
-            description = description.strip()
-        
-        return {
-            'id': voice_id,
-            'name': voice_name,
-            'language': language,
-            'gender': gender,
-            'description': description
-        }
 
 @settings_bp.route('/api/preview-voice', methods=['POST'])
 @login_required
