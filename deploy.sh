@@ -55,12 +55,19 @@ if ! grep -q "FERNET_KEY=" .env || grep -q "your-fernet-key-here" .env; then
         echo "✅ Fernet key generated using Python cryptography"
     else
         echo "⚠️  Python cryptography module not available, using OpenSSL fallback..."
-        # Generate a 32-byte key using OpenSSL and base64 encode it
-        FERNET_KEY=$(openssl rand -base64 32)
+        # Generate exactly 32 bytes and base64 encode for Fernet compatibility
+        FERNET_KEY=$(openssl rand 32 | base64)
         echo "✅ Fernet key generated using OpenSSL"
     fi
     # Use awk for safer replacement (handles special characters better)
     awk -v key="$FERNET_KEY" 'sub(/^FERNET_KEY=.*/, "FERNET_KEY=" key)' .env > .env.tmp && mv .env.tmp .env
+    
+    # Validate the generated key
+    if [ ${#FERNET_KEY} -eq 44 ]; then
+        echo "✅ Fernet key length verified: ${#FERNET_KEY} characters"
+    else
+        echo "⚠️  Warning: Fernet key length is ${#FERNET_KEY} characters (expected 44)"
+    fi
 fi
 
 # Generate secret key if not present
@@ -72,12 +79,19 @@ if ! grep -q "SECRET_KEY=" .env || grep -q "your-secret-key-here" .env; then
         echo "✅ Secret key generated using Python secrets"
     else
         echo "⚠️  Python secrets module not available, using OpenSSL fallback..."
-        # Generate a 32-byte key using OpenSSL and base64 encode it
-        SECRET_KEY=$(openssl rand -base64 32)
+        # Generate exactly 32 bytes and base64 encode for consistent length
+        SECRET_KEY=$(openssl rand 32 | base64)
         echo "✅ Secret key generated using OpenSSL"
     fi
     # Use awk for safer replacement
     awk -v key="$SECRET_KEY" 'sub(/^SECRET_KEY=.*/, "SECRET_KEY=" key)' .env > .env.tmp && mv .env.tmp .env
+    
+    # Validate the generated key
+    if [ ${#SECRET_KEY} -eq 44 ]; then
+        echo "✅ Secret key length verified: ${#SECRET_KEY} characters"
+    else
+        echo "⚠️  Warning: Secret key length is ${#SECRET_KEY} characters (expected 44)"
+    fi
 fi
 
 # Build and start containers

@@ -1,5 +1,9 @@
 version: '3.8'
 
+# Load environment variables from .env file
+env_file:
+  - .env
+
 services:
   web:
     build:
@@ -10,8 +14,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://bestfriend:bestfriend@db:5432/bestfriend
       - REDIS_URL=redis://redis:6379/0
-      - FERNET_KEY=dGV2LWZlcm5ldC1rZXktY2hhbmdlLWluLXByb2R1Y3Rpb24tMTIzNDU2Nzg5MA==
-      - SECRET_KEY=ZGV2LXNlY3JldC1rZXktY2hhbmdlLWluLXByb2R1Y3Rpb24tMTIzNDU2Nzg5MA==
+      - FERNET_KEY=${FERNET_KEY}
+      - SECRET_KEY=${SECRET_KEY}
     volumes:
       - ./app:/app/app
       - ./migrations:/app/migrations
