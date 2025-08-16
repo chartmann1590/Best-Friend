@@ -22,10 +22,14 @@ class Config:
     
     # Security
     FERNET_KEY = os.environ.get('FERNET_KEY')
-    SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     PERMANENT_SESSION_LIFETIME = timedelta(days=7)
+    
+    # Session Configuration
+    SESSION_TYPE = os.environ.get('SESSION_TYPE', 'filesystem')  # Use filesystem for session storage
+    SESSION_FILE_DIR = os.environ.get('SESSION_FILE_DIR', '/tmp/flask_session')  # Directory for session files
     
     # Rate Limiting
     RATE_LIMIT_PER_IP = int(os.environ.get('RATE_LIMIT_PER_IP', 100))

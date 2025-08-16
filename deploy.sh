@@ -78,6 +78,10 @@ RATE_LIMIT_PER_HOUR=1000
 # Admin User (will be created automatically)
 ADMIN_EMAIL=admin@bestfriend.local
 ADMIN_PASSWORD=admin123
+
+# Session Configuration
+SESSION_TYPE=filesystem
+SESSION_FILE_DIR=/tmp/flask_session
 EOF
 
 # Verify .env file was created properly
