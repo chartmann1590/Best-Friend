@@ -481,6 +481,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const data = await response.json();
             
+            // Debug logging
+            console.log('TTS test response:', data);
+            
             if (data.success) {
                 showTtsSuccess(data.message);
                 populateTtsVoices(data.voices);
@@ -517,6 +520,9 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             const data = await response.json();
+            
+            // Debug logging
+            console.log('TTS refresh response:', data);
             
             if (data.success) {
                 showTtsSuccess(`Refreshed voices from ${url}`);
@@ -646,11 +652,16 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add new voice options
         voices.forEach(voice => {
             const option = document.createElement('option');
-            option.value = voice.name;
+            // Use voice.id as the value, fallback to voice.name if id is not available
+            option.value = voice.id || voice.name;
             const description = voice.description || voice.name;
             option.textContent = `${voice.name} (${voice.language || 'Unknown'})`;
             ttsVoiceSelect.appendChild(option);
         });
+        
+        // Log for debugging
+        console.log('Populated TTS voices:', voices);
+        console.log('Voice select options:', Array.from(ttsVoiceSelect.options).map(opt => ({value: opt.value, text: opt.textContent})));
     }
     
     // Utility function to format bytes

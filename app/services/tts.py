@@ -148,8 +148,11 @@ class TTSService:
                 
                 # Log the response for debugging
                 logger.info(f"TTS response format: {type(voices_data)}, found {len(voices)} voices")
+                logger.info(f"Raw TTS response: {voices_data}")
                 if voices:
                     logger.info(f"Sample voice: {voices[0]}")
+                else:
+                    logger.warning("No voices found in TTS response")
                 
                 return voices
             else:

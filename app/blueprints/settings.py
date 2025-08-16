@@ -127,22 +127,34 @@ def test_tts_connection():
         voices_data = response.json()
         voices = []
         
+        # Use the same robust voice parsing as the TTS service
         if isinstance(voices_data, list):
+            # Direct list of voices
             for voice in voices_data:
-                voices.append({
-                    'name': voice.get('name', ''),
-                    'language': voice.get('language', ''),
-                    'gender': voice.get('gender', ''),
-                    'description': voice.get('description', '')
-                })
-        elif isinstance(voices_data, dict) and 'voices' in voices_data:
-            for voice in voices_data['voices']:
-                voices.append({
-                    'name': voice.get('name', ''),
-                    'language': voice.get('language', ''),
-                    'gender': voice.get('gender', ''),
-                    'description': voice.get('description', '')
-                })
+                voices.append(self._parse_voice_data(voice))
+        elif isinstance(voices_data, dict):
+            # Check for different possible structures
+            if 'voices' in voices_data:
+                # OpenTTS format: {"voices": [...]}
+                for voice in voices_data['voices']:
+                    voices.append(self._parse_voice_data(voice))
+            elif 'data' in voices_data:
+                # Alternative format: {"data": [...]}
+                for voice in voices_data['data']:
+                    voices.append(self._parse_voice_data(voice))
+            else:
+                # Try to find any list in the response
+                for key, value in voices_data.items():
+                    if isinstance(value, list):
+                        for voice in value:
+                            voices.append(self._parse_voice_data(voice))
+                        break
+        
+        # Log for debugging
+        print(f"TTS response format: {type(voices_data)}, found {len(voices)} voices")
+        print(f"Raw TTS response: {voices_data}")
+        if voices:
+            print(f"Sample voice: {voices[0]}")
         
         return jsonify({
             'success': True,
@@ -161,6 +173,35 @@ def test_tts_connection():
             'success': False,
             'error': f'Unexpected error: {str(e)}'
         }), 500
+
+    def _parse_voice_data(self, voice: dict) -> dict:
+        """Parse voice data from OpenTTS API response."""
+        # Handle different field names that OpenTTS might use
+        voice_id = voice.get('id') or voice.get('name') or voice.get('voice_id') or ''
+        voice_name = voice.get('name') or voice.get('display_name') or voice_id or 'Unknown'
+        language = voice.get('language') or voice.get('lang') or voice.get('locale') or 'Unknown'
+        gender = voice.get('gender') or voice.get('sex') or 'Unknown'
+        description = voice.get('description') or voice.get('desc') or voice.get('comment') or ''
+        
+        # Clean up the data
+        if isinstance(voice_id, str):
+            voice_id = voice_id.strip()
+        if isinstance(voice_name, str):
+            voice_name = voice_name.strip()
+        if isinstance(language, str):
+            language = language.strip()
+        if isinstance(gender, str):
+            gender = gender.strip()
+        if isinstance(description, str):
+            description = description.strip()
+        
+        return {
+            'id': voice_id,
+            'name': voice_name,
+            'language': language,
+            'gender': gender,
+            'description': description
+        }
 
 @settings_bp.route('/api/preview-voice', methods=['POST'])
 @login_required
