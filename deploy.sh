@@ -73,16 +73,9 @@ fi
 # Generate secret key if not present
 if ! grep -q "SECRET_KEY=" .env || grep -q "your-secret-key-here" .env; then
     echo "🔑 Generating secret key..."
-    # Try to use Python3 with secrets, fallback to openssl if not available
-    if python3 -c "import secrets" 2>/dev/null; then
-        SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
-        echo "✅ Secret key generated using Python secrets"
-    else
-        echo "⚠️  Python secrets module not available, using OpenSSL fallback..."
-        # Generate exactly 32 bytes and base64 encode for consistent length
-        SECRET_KEY=$(openssl rand 32 | base64)
-        echo "✅ Secret key generated using OpenSSL"
-    fi
+    # Use OpenSSL for consistent 44-character base64-encoded keys
+    SECRET_KEY=$(openssl rand 32 | base64)
+    echo "✅ Secret key generated using OpenSSL"
     # Use awk for safer replacement
     awk -v key="$SECRET_KEY" 'sub(/^SECRET_KEY=.*/, "SECRET_KEY=" key)' .env > .env.tmp && mv .env.tmp .env
     
@@ -93,6 +86,10 @@ if ! grep -q "SECRET_KEY=" .env || grep -q "your-secret-key-here" .env; then
         echo "⚠️  Warning: Secret key length is ${#SECRET_KEY} characters (expected 44)"
     fi
 fi
+
+# Export environment variables for Docker Compose
+echo "🔧 Loading environment variables..."
+export $(grep -v '^#' .env | xargs)
 
 # Build and start containers
 echo "🐳 Building and starting containers..."
