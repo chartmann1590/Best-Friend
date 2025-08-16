@@ -234,6 +234,64 @@
             </div>
         </div>
         
+        <!-- Memory Management -->
+        <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Memory Management</h2>
+            
+            <div class="mb-6">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Memory Statistics</h3>
+                <div id="memoryStats" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div class="text-2xl font-bold text-blue-600" id="totalMemories">-</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Total Memories</div>
+                    </div>
+                    <div class="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div class="text-2xl font-bold text-green-600" id="conversationMemories">-</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Conversations</div>
+                    </div>
+                    <div class="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div class="text-2xl font-bold text-purple-600" id="factMemories">-</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Facts</div>
+                    </div>
+                    <div class="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div class="text-2xl font-bold text-yellow-600" id="preferenceMemories">-</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Preferences</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="space-y-4">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Clear Memories</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button type="button" id="clearConversationMemories" 
+                            class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors">
+                        Clear Conversation Memories
+                    </button>
+                    
+                    <button type="button" id="clearFactMemories" 
+                            class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                        Clear Fact Memories
+                    </button>
+                    
+                    <button type="button" id="clearPreferenceMemories" 
+                            class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors">
+                        Clear Preference Memories
+                    </button>
+                    
+                    <button type="button" id="clearAllMemories" 
+                            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                        Clear All Memories
+                    </button>
+                </div>
+                
+                <div id="memoryClearStatus" class="mt-4 hidden">
+                    <div id="memoryClearSuccess" class="hidden text-sm text-green-600 dark:text-green-400"></div>
+                    <div id="memoryClearError" class="hidden text-sm text-red-600 dark:text-red-400"></div>
+                </div>
+            </div>
+        </div>
+        
         <!-- Save Button -->
         <div class="flex justify-end">
             <button type="submit" 
@@ -675,6 +733,97 @@ document.addEventListener('DOMContentLoaded', function() {
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         
         return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+    
+    // Memory Management
+    const memoryStats = document.getElementById('memoryStats');
+    const totalMemories = document.getElementById('totalMemories');
+    const conversationMemories = document.getElementById('conversationMemories');
+    const factMemories = document.getElementById('factMemories');
+    const preferenceMemories = document.getElementById('preferenceMemories');
+    const memoryClearStatus = document.getElementById('memoryClearStatus');
+    const memoryClearSuccess = document.getElementById('memoryClearSuccess');
+    const memoryClearError = document.getElementById('memoryClearError');
+    
+    // Load memory statistics on page load
+    loadMemoryStats();
+    
+    // Memory clear buttons
+    document.getElementById('clearConversationMemories').addEventListener('click', () => clearMemories('conversation'));
+    document.getElementById('clearFactMemories').addEventListener('click', () => clearMemories('fact'));
+    document.getElementById('clearPreferenceMemories').addEventListener('click', () => clearMemories('preference'));
+    document.getElementById('clearAllMemories').addEventListener('click', () => clearMemories('all'));
+    
+    async function loadMemoryStats() {
+        try {
+            const response = await fetch('{{ url_for("settings.get_memory_stats") }}');
+            const data = await response.json();
+            
+            if (data.success) {
+                totalMemories.textContent = data.stats.total || 0;
+                conversationMemories.textContent = data.stats.conversation || 0;
+                factMemories.textContent = data.stats.fact || 0;
+                preferenceMemories.textContent = data.stats.preference || 0;
+            }
+        } catch (error) {
+            console.error('Error loading memory stats:', error);
+        }
+    }
+    
+    async function clearMemories(memoryType) {
+        const confirmMessage = `Are you sure you want to clear ${memoryType === 'all' ? 'all' : memoryType} memories? This action cannot be undone.`;
+        
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+        
+        try {
+            const formData = new FormData();
+            formData.append('memory_type', memoryType);
+            formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+            
+            const response = await fetch('{{ url_for("settings.clear_memories") }}', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showMemoryClearSuccess(data.message);
+                // Reload memory stats
+                loadMemoryStats();
+            } else {
+                showMemoryClearError(data.error);
+            }
+        } catch (error) {
+            console.error('Error clearing memories:', error);
+            showMemoryClearError('Failed to clear memories. Please try again.');
+        }
+    }
+    
+    function showMemoryClearSuccess(message) {
+        memoryClearStatus.classList.remove('hidden');
+        memoryClearSuccess.textContent = message;
+        memoryClearSuccess.classList.remove('hidden');
+        memoryClearError.classList.add('hidden');
+        
+        // Hide after 5 seconds
+        setTimeout(() => {
+            memoryClearStatus.classList.add('hidden');
+        }, 5000);
+    }
+    
+    function showMemoryClearError(message) {
+        memoryClearStatus.classList.remove('hidden');
+        memoryClearError.textContent = message;
+        memoryClearError.classList.remove('hidden');
+        memoryClearSuccess.classList.add('hidden');
+        
+        // Hide after 5 seconds
+        setTimeout(() => {
+            memoryClearStatus.classList.add('hidden');
+        }, 5000);
     }
 });
 </script>

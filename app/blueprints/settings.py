@@ -333,3 +333,77 @@ def preview_voice():
             'success': False,
             'error': f'Unexpected error: {str(e)}'
         }), 500
+
+@settings_bp.route('/api/clear-memories', methods=['POST'])
+@login_required
+def clear_memories():
+    """Clear user memories."""
+    try:
+        validate_csrf(request.form.get('csrf_token'))
+    except BadRequest:
+        return jsonify({'error': 'CSRF token validation failed'}), 400
+    
+    memory_type = request.form.get('memory_type', 'all')  # all, conversation, fact, preference
+    
+    try:
+        memory_service = current_app.memory_service
+        if memory_service:
+            if memory_type == 'all':
+                success = memory_service.clear_user_memories(current_user.id)
+            elif memory_type == 'conversation':
+                success = memory_service.clear_conversation_memories(current_user.id)
+            elif memory_type == 'fact':
+                success = memory_service.clear_fact_memories(current_user.id)
+            elif memory_type == 'preference':
+                success = memory_service.clear_preference_memories(current_user.id)
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': f'Invalid memory type: {memory_type}'
+                }), 400
+            
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': f'Successfully cleared {memory_type} memories'
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Failed to clear memories'
+                }), 500
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Memory service not available'
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Unexpected error: {str(e)}'
+        }), 500
+
+@settings_bp.route('/api/memory-stats', methods=['GET'])
+@login_required
+def get_memory_stats():
+    """Get user memory statistics."""
+    try:
+        memory_service = current_app.memory_service
+        if memory_service:
+            stats = memory_service.get_memory_stats(current_user.id)
+            return jsonify({
+                'success': True,
+                'stats': stats
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Memory service not available'
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Unexpected error: {str(e)}'
+        }), 500

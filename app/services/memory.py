@@ -61,6 +61,72 @@ class MemoryService:
             db.session.rollback()
             return None
     
+    def clear_user_memories(self, user_id: int, memory_type: Optional[str] = None) -> bool:
+        """Clear all memories for a user, optionally filtered by type."""
+        try:
+            query = db.session.query(Memory).filter(Memory.user_id == user_id)
+            
+            if memory_type:
+                query = query.filter(Memory.memory_type == memory_type)
+            
+            memories_to_delete = query.all()
+            count = len(memories_to_delete)
+            
+            for memory in memories_to_delete:
+                db.session.delete(memory)
+            
+            db.session.commit()
+            
+            # Log memory clearing
+            log_memory_operation(
+                'clear',
+                user_id,
+                f"Type: {memory_type or 'all'}, Count: {count}"
+            )
+            
+            logger.info(f"Cleared {count} memories for user {user_id} (type: {memory_type or 'all'})")
+            return True
+            
+        except Exception as e:
+            log_error(e, f"Error clearing memories for user {user_id}")
+            db.session.rollback()
+            return False
+    
+    def clear_conversation_memories(self, user_id: int) -> bool:
+        """Clear conversation-related memories for a user."""
+        return self.clear_user_memories(user_id, 'conversation')
+    
+    def clear_fact_memories(self, user_id: int) -> bool:
+        """Clear fact-based memories for a user."""
+        return self.clear_user_memories(user_id, 'fact')
+    
+    def clear_preference_memories(self, user_id: int) -> bool:
+        """Clear preference-based memories for a user."""
+        return self.clear_user_memories(user_id, 'preference')
+    
+    def get_memory_stats(self, user_id: int) -> Dict[str, int]:
+        """Get memory statistics for a user."""
+        try:
+            stats = {}
+            
+            # Total memories
+            total = db.session.query(Memory).filter(Memory.user_id == user_id).count()
+            stats['total'] = total
+            
+            # Memories by type
+            for memory_type in ['conversation', 'fact', 'preference', 'summary']:
+                count = db.session.query(Memory).filter(
+                    Memory.user_id == user_id,
+                    Memory.memory_type == memory_type
+                ).count()
+                stats[memory_type] = count
+            
+            return stats
+            
+        except Exception as e:
+            log_error(e, f"Error getting memory stats for user {user_id}")
+            return {}
+    
     def search_memories(self, user_id: int, query: str, limit: int = 10, 
                        threshold: float = 0.7) -> List[Tuple[Memory, float]]:
         """Search memories using vector similarity."""

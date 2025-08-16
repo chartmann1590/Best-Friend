@@ -7,6 +7,18 @@
     <div class="mb-8">
         <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h1>
         <p class="text-gray-600 dark:text-gray-400">System administration and monitoring</p>
+        
+        <!-- Admin Actions -->
+        <div class="mt-4 flex space-x-4">
+            <a href="{{ url_for('auth.change_password') }}" 
+               class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                🔐 Change Password
+            </a>
+            <a href="{{ url_for('settings.index') }}" 
+               class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                ⚙️ Settings
+            </a>
+        </div>
     </div>
     
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
