@@ -87,84 +87,85 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
+if [ ! -s .env ]; then
+    echo "❌ .env file is empty!"
+    exit 1
+fi
+
 echo "✅ .env file created successfully with $(wc -l < .env) lines"
 
-# Install Python if needed
-if ! command -v python3 &> /dev/null; then
-    echo "📦 Installing Python3..."
-    apt-get update && apt-get install -y python3 python3-pip
+# Generate Fernet key if not present
+if ! grep -q "FERNET_KEY=" .env || grep -q "your-fernet-key-here" .env; then
+    echo "🔑 Generating Fernet key..."
+    # Use Python to generate a proper Fernet key
+    FERNET_KEY=$(python3 -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode('ascii'))")
+    
+    # Validate the generated key
+    if [ ${#FERNET_KEY} -eq 44 ]; then
+        echo "✅ Fernet key generated: ${#FERNET_KEY} characters"
+    else
+        echo "❌ Error: Fernet key generation failed (got ${#FERNET_KEY} characters)"
+        exit 1
+    fi
+    
+    # Use sed with delimiter that won't conflict with base64 characters
+    sed -i "s|^FERNET_KEY=.*|FERNET_KEY=${FERNET_KEY}|" .env
 fi
 
-# Generate Fernet key
-echo "🔑 Generating Fernet key..."
-FERNET_KEY=$(python3 -c "
-import base64
-import os
-key = base64.urlsafe_b64encode(os.urandom(32)).decode('ascii')
-print(key)
-" 2>/dev/null)
-
-# Verify it's exactly 44 chars
-if [ ${#FERNET_KEY} -eq 44 ]; then
-    echo "✅ Fernet key generated: ${#FERNET_KEY} characters"
-else
-    echo "❌ Fernet key generation failed. Using fallback..."
-    # Use a hardcoded valid key as fallback
-    FERNET_KEY="gAAAAABhMWI5zRkrqCpjCr3_H1zPPqKfAijpZXbXrPw-7Q=="
+# Generate secret key if not present
+if ! grep -q "SECRET_KEY=" .env || grep -q "your-secret-key-here" .env; then
+    echo "🔑 Generating secret key..."
+    # Use Python to generate a proper key
+    SECRET_KEY=$(python3 -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode('ascii'))")
+    
+    # Validate the generated key
+    if [ ${#SECRET_KEY} -eq 44 ]; then
+        echo "✅ Secret key generated: ${#SECRET_KEY} characters"
+    else
+        echo "❌ Error: Secret key generation failed (got ${#SECRET_KEY} characters)"
+        exit 1
+    fi
+    
+    # Use sed with delimiter that won't conflict with base64 characters
+    sed -i "s|^SECRET_KEY=.*|SECRET_KEY=${SECRET_KEY}|" .env
 fi
-
-# Update .env with Fernet key
-sed -i "s|^FERNET_KEY=.*|FERNET_KEY=${FERNET_KEY}|" .env
-
-# Generate Secret key
-echo "🔑 Generating secret key..."
-SECRET_KEY=$(python3 -c "
-import base64
-import os
-key = base64.urlsafe_b64encode(os.urandom(32)).decode('ascii')
-print(key)
-" 2>/dev/null)
-
-# Verify it's exactly 44 chars
-if [ ${#SECRET_KEY} -eq 44 ]; then
-    echo "✅ Secret key generated: ${#SECRET_KEY} characters"
-else
-    echo "❌ Secret key generation failed. Using fallback..."
-    # Use a different hardcoded valid key as fallback
-    SECRET_KEY="hBBBBBBhMWI5zRkrqCpjCr3_H1zPPqKfAijpZXbXrPw-8R=="
-fi
-
-# Update .env with Secret key
-sed -i "s|^SECRET_KEY=.*|SECRET_KEY=${SECRET_KEY}|" .env
 
 # Export environment variables for Docker Compose
 echo "🔧 Exporting environment variables for Docker Compose..."
 
-# Export the keys directly
-export FERNET_KEY
-export SECRET_KEY
-
-# Also read and export all from .env
-while IFS='=' read -r key value; do
+# THE FIX: Use proper IFS handling to preserve full line content
+while IFS= read -r line; do
     # Skip comments and empty lines
-    if [[ ! "$key" =~ ^#.*$ ]] && [[ -n "$key" ]]; then
+    if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then
+        continue
+    fi
+    
+    # Check if line contains an = sign
+    if [[ "$line" == *"="* ]]; then
+        # Split on first = only
+        key="${line%%=*}"
+        value="${line#*=}"
+        
         # Remove any surrounding quotes from the value
         value="${value%\"}"
         value="${value#\"}"
         value="${value%\'}"
         value="${value#\'}"
+        
         # Export the variable
         export "$key=$value"
     fi
 done < .env
 
-# Final verification
+# Verify critical environment variables are exported
 echo "🔍 Verifying exported environment variables..."
 echo "   FERNET_KEY: ${FERNET_KEY:0:20}... (${#FERNET_KEY} chars)"
 echo "   SECRET_KEY: ${SECRET_KEY:0:20}... (${#SECRET_KEY} chars)"
 
 if [ ${#FERNET_KEY} -ne 44 ] || [ ${#SECRET_KEY} -ne 44 ]; then
     echo "❌ Keys are not the correct length! Cannot continue."
+    echo "   FERNET_KEY length: ${#FERNET_KEY}"
+    echo "   SECRET_KEY length: ${#SECRET_KEY}"
     exit 1
 fi
 
@@ -216,6 +217,12 @@ echo "   View logs: $COMPOSE_CMD logs -f"
 echo "   Stop services: $COMPOSE_CMD down"
 echo "   Restart services: $COMPOSE_CMD restart"
 echo "   View web logs: $COMPOSE_CMD logs -f web"
+echo "   View nginx logs: $COMPOSE_CMD logs -f nginx"
+echo "   Connect to database: $COMPOSE_CMD exec db psql -U bestfriend"
 echo ""
 echo "⚠️  Note: This is using a self-signed certificate."
 echo "   You'll need to accept the security warning in your browser."
+echo ""
+echo "💡 Troubleshooting:"
+echo "   If services fail to start, check logs with: $COMPOSE_CMD logs"
+echo "   To rebuild from scratch: $COMPOSE_CMD down -v && ./deploy.sh"
