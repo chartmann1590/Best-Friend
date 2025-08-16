@@ -17,7 +17,9 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Enable pgvector extension
+    # Enable pgvector extension for vector operations
+    # Note: The VECTOR type is handled at the application level
+    # This migration creates the table structure, and the app handles vector casting
     op.execute('CREATE EXTENSION IF NOT EXISTS vector')
     
     # Create users table
@@ -55,7 +57,7 @@ def upgrade() -> None:
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('user_id', sa.Integer(), nullable=False),
         sa.Column('content', sa.Text(), nullable=False),
-        sa.Column('embedding', postgresql.VECTOR(384), nullable=True),
+        sa.Column('embedding', sa.Text(), nullable=True),  # Store as text, will be cast to vector in app
         sa.Column('memory_type', sa.String(length=50), nullable=True),
         sa.Column('importance', sa.Float(), nullable=True),
         sa.Column('last_accessed', sa.DateTime(), nullable=True),
