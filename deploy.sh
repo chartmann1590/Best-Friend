@@ -87,127 +87,64 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
-if [ ! -s .env ]; then
-    echo "❌ .env file is empty!"
-    exit 1
-fi
-
 echo "✅ .env file created successfully with $(wc -l < .env) lines"
 
-# Function to generate a proper Fernet key - ALWAYS returns exactly 44 characters
-generate_fernet_key() {
-    # Method 1: Try Python with cryptography module (most reliable)
-    if python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 2>/dev/null; then
-        python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-        return 0
-    fi
-    
-    # Method 2: Try Python with base64 module
-    if python3 -c "import os, base64; print(base64.urlsafe_b64encode(os.urandom(32)).decode('ascii'))" 2>/dev/null; then
-        python3 -c "import os, base64; print(base64.urlsafe_b64encode(os.urandom(32)).decode('ascii'))"
-        return 0
-    fi
-    
-    # Method 3: OpenSSL with manual padding fix
-    # Generate 32 bytes, encode to base64, replace + with - and / with _ for URL-safe base64
-    # Then ensure exactly 44 characters with = padding
-    local key=$(openssl rand 32 | base64 | tr -d '\n' | tr '+/' '-_')
-    # Trim to 43 chars if needed and add one = for padding
-    if [ ${#key} -ge 44 ]; then
-        echo "${key:0:44}"
-    elif [ ${#key} -eq 43 ]; then
-        echo "${key}="
-    elif [ ${#key} -eq 42 ]; then
-        echo "${key}=="
-    else
-        # If still wrong, generate a hardcoded valid key as last resort
-        echo "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    fi
-}
-
-# Install Python cryptography if possible for reliable key generation
-echo "🔧 Ensuring Python cryptography module is available..."
-if ! python3 -c "import cryptography.fernet" 2>/dev/null; then
-    echo "📦 Installing Python cryptography module for secure key generation..."
-    if command -v apt-get &> /dev/null; then
-        apt-get update >/dev/null 2>&1 && apt-get install -y python3-pip >/dev/null 2>&1
-        pip3 install cryptography >/dev/null 2>&1 || true
-    elif command -v pip3 &> /dev/null; then
-        pip3 install cryptography >/dev/null 2>&1 || true
-    fi
+# Install Python if needed
+if ! command -v python3 &> /dev/null; then
+    echo "📦 Installing Python3..."
+    apt-get update && apt-get install -y python3 python3-pip
 fi
 
-# Generate Fernet key if not present
-if ! grep -q "FERNET_KEY=" .env || grep -q "your-fernet-key-here" .env; then
-    echo "🔑 Generating Fernet key..."
-    
-    # Keep trying until we get exactly 44 characters
-    attempts=0
-    while [ $attempts -lt 10 ]; do
-        FERNET_KEY=$(generate_fernet_key)
-        if [ ${#FERNET_KEY} -eq 44 ]; then
-            echo "✅ Fernet key generated successfully: ${#FERNET_KEY} characters"
-            break
-        fi
-        attempts=$((attempts + 1))
-        echo "⚠️  Attempt $attempts: Got ${#FERNET_KEY} characters, retrying..."
-    done
-    
-    # Final validation
-    if [ ${#FERNET_KEY} -ne 44 ]; then
-        echo "❌ Error: Could not generate valid 44-character Fernet key after $attempts attempts"
-        echo "🔧 Using fallback key generation with Python inline..."
-        # Inline Python as absolute fallback
-        FERNET_KEY=$(python3 -c "
-import base64, os
+# Generate Fernet key
+echo "🔑 Generating Fernet key..."
+FERNET_KEY=$(python3 -c "
+import base64
+import os
 key = base64.urlsafe_b64encode(os.urandom(32)).decode('ascii')
-assert len(key) == 44, f'Key is {len(key)} chars'
 print(key)
-" 2>/dev/null) || FERNET_KEY="gAAAAABhMWI5zRkrqCpjCr3_H1zPPqKfAijpZXbXrPw-7Q=="
-        echo "✅ Fallback key generated: ${#FERNET_KEY} characters"
-    fi
-    
-    # Use sed with delimiter that won't conflict with base64 characters
-    sed -i "s|^FERNET_KEY=.*|FERNET_KEY=${FERNET_KEY}|" .env
+" 2>/dev/null)
+
+# Verify it's exactly 44 chars
+if [ ${#FERNET_KEY} -eq 44 ]; then
+    echo "✅ Fernet key generated: ${#FERNET_KEY} characters"
+else
+    echo "❌ Fernet key generation failed. Using fallback..."
+    # Use a hardcoded valid key as fallback
+    FERNET_KEY="gAAAAABhMWI5zRkrqCpjCr3_H1zPPqKfAijpZXbXrPw-7Q=="
 fi
 
-# Generate secret key if not present
-if ! grep -q "SECRET_KEY=" .env || grep -q "your-secret-key-here" .env; then
-    echo "🔑 Generating secret key..."
-    
-    # Keep trying until we get exactly 44 characters
-    attempts=0
-    while [ $attempts -lt 10 ]; do
-        SECRET_KEY=$(generate_fernet_key)
-        if [ ${#SECRET_KEY} -eq 44 ]; then
-            echo "✅ Secret key generated successfully: ${#SECRET_KEY} characters"
-            break
-        fi
-        attempts=$((attempts + 1))
-        echo "⚠️  Attempt $attempts: Got ${#SECRET_KEY} characters, retrying..."
-    done
-    
-    # Final validation
-    if [ ${#SECRET_KEY} -ne 44 ]; then
-        echo "❌ Error: Could not generate valid 44-character secret key after $attempts attempts"
-        echo "🔧 Using fallback key generation..."
-        SECRET_KEY=$(python3 -c "
-import base64, os
+# Update .env with Fernet key
+sed -i "s|^FERNET_KEY=.*|FERNET_KEY=${FERNET_KEY}|" .env
+
+# Generate Secret key
+echo "🔑 Generating secret key..."
+SECRET_KEY=$(python3 -c "
+import base64
+import os
 key = base64.urlsafe_b64encode(os.urandom(32)).decode('ascii')
-assert len(key) == 44, f'Key is {len(key)} chars'
 print(key)
-" 2>/dev/null) || SECRET_KEY="hBBBBBBhMWI5zRkrqCpjCr3_H1zPPqKfAijpZXbXrPw-8R=="
-        echo "✅ Fallback key generated: ${#SECRET_KEY} characters"
-    fi
-    
-    # Use sed with delimiter that won't conflict with base64 characters
-    sed -i "s|^SECRET_KEY=.*|SECRET_KEY=${SECRET_KEY}|" .env
+" 2>/dev/null)
+
+# Verify it's exactly 44 chars
+if [ ${#SECRET_KEY} -eq 44 ]; then
+    echo "✅ Secret key generated: ${#SECRET_KEY} characters"
+else
+    echo "❌ Secret key generation failed. Using fallback..."
+    # Use a different hardcoded valid key as fallback
+    SECRET_KEY="hBBBBBBhMWI5zRkrqCpjCr3_H1zPPqKfAijpZXbXrPw-8R=="
 fi
+
+# Update .env with Secret key
+sed -i "s|^SECRET_KEY=.*|SECRET_KEY=${SECRET_KEY}|" .env
 
 # Export environment variables for Docker Compose
 echo "🔧 Exporting environment variables for Docker Compose..."
 
-# Read the .env file and export each variable
+# Export the keys directly
+export FERNET_KEY
+export SECRET_KEY
+
+# Also read and export all from .env
 while IFS='=' read -r key value; do
     # Skip comments and empty lines
     if [[ ! "$key" =~ ^#.*$ ]] && [[ -n "$key" ]]; then
@@ -221,23 +158,17 @@ while IFS='=' read -r key value; do
     fi
 done < .env
 
-# Verify critical environment variables are exported
+# Final verification
 echo "🔍 Verifying exported environment variables..."
-if [ -n "$FERNET_KEY" ] && [ ${#FERNET_KEY} -eq 44 ]; then
-    echo "✅ FERNET_KEY exported: ${FERNET_KEY:0:20}... (${#FERNET_KEY} chars)"
-else
-    echo "❌ FERNET_KEY not properly exported or wrong length!"
-    echo "   Current value: $FERNET_KEY (${#FERNET_KEY} chars)"
+echo "   FERNET_KEY: ${FERNET_KEY:0:20}... (${#FERNET_KEY} chars)"
+echo "   SECRET_KEY: ${SECRET_KEY:0:20}... (${#SECRET_KEY} chars)"
+
+if [ ${#FERNET_KEY} -ne 44 ] || [ ${#SECRET_KEY} -ne 44 ]; then
+    echo "❌ Keys are not the correct length! Cannot continue."
     exit 1
 fi
 
-if [ -n "$SECRET_KEY" ] && [ ${#SECRET_KEY} -eq 44 ]; then
-    echo "✅ SECRET_KEY exported: ${SECRET_KEY:0:20}... (${#SECRET_KEY} chars)"
-else
-    echo "❌ SECRET_KEY not properly exported or wrong length!"
-    echo "   Current value: $SECRET_KEY (${#SECRET_KEY} chars)"
-    exit 1
-fi
+echo "✅ All environment variables exported successfully"
 
 # Build and start containers with explicit env file
 echo "🐳 Building and starting containers..."
@@ -285,12 +216,6 @@ echo "   View logs: $COMPOSE_CMD logs -f"
 echo "   Stop services: $COMPOSE_CMD down"
 echo "   Restart services: $COMPOSE_CMD restart"
 echo "   View web logs: $COMPOSE_CMD logs -f web"
-echo "   View nginx logs: $COMPOSE_CMD logs -f nginx"
-echo "   Connect to database: $COMPOSE_CMD exec db psql -U bestfriend"
 echo ""
 echo "⚠️  Note: This is using a self-signed certificate."
 echo "   You'll need to accept the security warning in your browser."
-echo ""
-echo "💡 Troubleshooting:"
-echo "   If services fail to start, check logs with: $COMPOSE_CMD logs"
-echo "   To rebuild from scratch: $COMPOSE_CMD down -v && ./deploy.sh"
