@@ -50,19 +50,36 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label for="ollama_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Remote Ollama Server URL</label>
-                    <input type="url" id="ollama_url" name="ollama_url" 
-                           value="{{ settings.get('ollama_url', 'http://your-ollama-server:11434') }}"
-                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                           placeholder="http://your-ollama-server:11434">
+                    <div class="flex space-x-2">
+                        <input type="url" id="ollama_url" name="ollama_url" 
+                               value="{{ settings.get('ollama_url', 'http://your-ollama-server:11434') }}"
+                               class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                               placeholder="http://your-ollama-server:11434">
+                        <button type="button" id="testOllamaBtn" 
+                                class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors">
+                            Test
+                        </button>
+                    </div>
                     <p class="text-sm text-gray-500 mt-1">Enter the URL of your remote Ollama server</p>
+                    <div id="ollamaStatus" class="mt-2 hidden">
+                        <div id="ollamaSuccess" class="hidden text-sm text-green-600 dark:text-green-400"></div>
+                        <div id="ollamaError" class="hidden text-sm text-red-600 dark:text-red-400"></div>
+                    </div>
                 </div>
                 
                 <div>
                     <label for="ollama_model" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">AI Model</label>
-                    <input type="text" id="ollama_model" name="ollama_model" 
-                           value="{{ settings.get('ollama_model', 'llama3.1:8b') }}"
-                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                           placeholder="llama3.1:8b">
+                    <div class="flex space-x-2">
+                        <select id="ollama_model" name="ollama_model" 
+                                class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white">
+                            <option value="{{ settings.get('ollama_model', 'llama3.1:8b') }}" selected>{{ settings.get('ollama_model', 'llama3.1:8b') }}</option>
+                        </select>
+                        <button type="button" id="refreshOllamaModelsBtn" 
+                                class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                            🔄
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">Select from available models on your server</p>
                 </div>
                 
                 <div>
@@ -97,18 +114,36 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label for="tts_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">TTS Server URL</label>
-                    <input type="url" id="tts_url" name="tts_url" 
-                           value="{{ settings.get('tts_url', 'http://opentts:5500') }}"
-                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                           placeholder="http://opentts:5500">
+                    <div class="flex space-x-2">
+                        <input type="url" id="tts_url" name="tts_url" 
+                               value="{{ settings.get('tts_url', 'http://opentts:5500') }}"
+                               class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                               placeholder="http://opentts:5500">
+                        <button type="button" id="testTtsBtn" 
+                                class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors">
+                            Test
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">Enter the URL of your TTS server</p>
+                    <div id="ttsStatus" class="mt-2 hidden">
+                        <div id="ttsSuccess" class="hidden text-sm text-green-600 dark:text-green-400"></div>
+                        <div id="ttsError" class="hidden text-sm text-red-600 dark:text-red-400"></div>
+                    </div>
                 </div>
                 
                 <div>
                     <label for="tts_voice" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Voice</label>
-                    <input type="text" id="tts_voice" name="tts_voice" 
-                           value="{{ settings.get('tts_voice', 'en_US-amy-low') }}"
-                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                           placeholder="en_US-amy-low">
+                    <div class="flex space-x-2">
+                        <select id="tts_voice" name="tts_voice" 
+                                class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white">
+                            <option value="{{ settings.get('tts_voice', 'en_US-amy-low') }}" selected>{{ settings.get('tts_voice', 'en_US-amy-low') }}</option>
+                        </select>
+                        <button type="button" id="refreshTtsVoicesBtn" 
+                                class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                            🔄
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">Select from available voices on your server</p>
                 </div>
                 
                 <div>
@@ -282,6 +317,244 @@ document.addEventListener('DOMContentLoaded', function() {
         deleteModal.classList.add('hidden');
         deleteModal.classList.remove('flex');
     });
+    
+    // Ollama connection testing and model fetching
+    const testOllamaBtn = document.getElementById('testOllamaBtn');
+    const refreshOllamaModelsBtn = document.getElementById('refreshOllamaModelsBtn');
+    const ollamaUrlInput = document.getElementById('ollama_url');
+    const ollamaModelSelect = document.getElementById('ollama_model');
+    const ollamaStatus = document.getElementById('ollamaStatus');
+    const ollamaSuccess = document.getElementById('ollamaSuccess');
+    const ollamaError = document.getElementById('ollamaError');
+    
+    testOllamaBtn.addEventListener('click', async function() {
+        const url = ollamaUrlInput.value.trim();
+        if (!url) {
+            showOllamaError('Please enter an Ollama server URL');
+            return;
+        }
+        
+        testOllamaBtn.disabled = true;
+        testOllamaBtn.textContent = 'Testing...';
+        
+        try {
+            const formData = new FormData();
+            formData.append('ollama_url', url);
+            formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+            
+            const response = await fetch('/api/test-ollama', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showOllamaSuccess(data.message);
+                populateOllamaModels(data.models);
+            } else {
+                showOllamaError(data.error);
+            }
+        } catch (error) {
+            console.error('Error testing Ollama connection:', error);
+            showOllamaError('Failed to test connection. Please check the URL and try again.');
+        } finally {
+            testOllamaBtn.disabled = false;
+            testOllamaBtn.textContent = 'Test';
+        }
+    });
+    
+    refreshOllamaModelsBtn.addEventListener('click', async function() {
+        const url = ollamaUrlInput.value.trim();
+        if (!url) {
+            showOllamaError('Please enter an Ollama server URL first');
+            return;
+        }
+        
+        refreshOllamaModelsBtn.disabled = true;
+        refreshOllamaModelsBtn.textContent = '🔄';
+        
+        try {
+            const formData = new FormData();
+            formData.append('ollama_url', url);
+            formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+            
+            const response = await fetch('/api/test-ollama', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showOllamaSuccess(`Refreshed models from ${url}`);
+                populateOllamaModels(data.models);
+            } else {
+                showOllamaError(data.error);
+            }
+        } catch (error) {
+            console.error('Error refreshing Ollama models:', error);
+            showOllamaError('Failed to refresh models. Please try again.');
+        } finally {
+            refreshOllamaModelsBtn.disabled = false;
+            refreshOllamaModelsBtn.textContent = '🔄';
+        }
+    });
+    
+    function showOllamaSuccess(message) {
+        ollamaStatus.classList.remove('hidden');
+        ollamaSuccess.textContent = message;
+        ollamaSuccess.classList.remove('hidden');
+        ollamaError.classList.add('hidden');
+    }
+    
+    function showOllamaError(message) {
+        ollamaStatus.classList.remove('hidden');
+        ollamaError.textContent = message;
+        ollamaError.classList.remove('hidden');
+        ollamaSuccess.classList.add('hidden');
+    }
+    
+    function populateOllamaModels(models) {
+        // Clear existing options except the first one
+        while (ollamaModelSelect.options.length > 1) {
+            ollamaModelSelect.remove(1);
+        }
+        
+        // Add new model options
+        models.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model.name;
+            option.textContent = `${model.name} (${formatBytes(model.size)})`;
+            ollamaModelSelect.appendChild(option);
+        });
+    }
+    
+    // TTS connection testing and voice fetching
+    const testTtsBtn = document.getElementById('testTtsBtn');
+    const refreshTtsVoicesBtn = document.getElementById('refreshTtsVoicesBtn');
+    const ttsUrlInput = document.getElementById('tts_url');
+    const ttsVoiceSelect = document.getElementById('tts_voice');
+    const ttsStatus = document.getElementById('ttsStatus');
+    const ttsSuccess = document.getElementById('ttsSuccess');
+    const ttsError = document.getElementById('ttsError');
+    
+    testTtsBtn.addEventListener('click', async function() {
+        const url = ttsUrlInput.value.trim();
+        if (!url) {
+            showTtsError('Please enter a TTS server URL');
+            return;
+        }
+        
+        testTtsBtn.disabled = true;
+        testTtsBtn.textContent = 'Testing...';
+        
+        try {
+            const formData = new FormData();
+            formData.append('tts_url', url);
+            formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+            
+            const response = await fetch('/api/test-tts', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showTtsSuccess(data.message);
+                populateTtsVoices(data.voices);
+            } else {
+                showTtsError(data.error);
+            }
+        } catch (error) {
+            console.error('Error testing TTS connection:', error);
+            showTtsError('Failed to test connection. Please check the URL and try again.');
+        } finally {
+            testTtsBtn.disabled = false;
+            testTtsBtn.textContent = 'Test';
+        }
+    });
+    
+    refreshTtsVoicesBtn.addEventListener('click', async function() {
+        const url = ttsUrlInput.value.trim();
+        if (!url) {
+            showTtsError('Please enter a TTS server URL first');
+            return;
+        }
+        
+        refreshTtsVoicesBtn.disabled = true;
+        refreshTtsVoicesBtn.textContent = '🔄';
+        
+        try {
+            const formData = new FormData();
+            formData.append('tts_url', url);
+            formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+            
+            const response = await fetch('/api/test-tts', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showTtsSuccess(`Refreshed voices from ${url}`);
+                populateTtsVoices(data.voices);
+            } else {
+                showTtsError(data.error);
+            }
+        } catch (error) {
+            console.error('Error refreshing TTS voices:', error);
+            showTtsError('Failed to refresh voices. Please try again.');
+        } finally {
+            refreshTtsVoicesBtn.disabled = false;
+            refreshTtsVoicesBtn.textContent = '🔄';
+        }
+    });
+    
+    function showTtsSuccess(message) {
+        ttsStatus.classList.remove('hidden');
+        ttsSuccess.textContent = message;
+        ttsSuccess.classList.remove('hidden');
+        ttsError.classList.add('hidden');
+    }
+    
+    function showTtsError(message) {
+        ttsStatus.classList.remove('hidden');
+        ttsError.textContent = message;
+        ttsError.classList.remove('hidden');
+        ttsSuccess.classList.add('hidden');
+    }
+    
+    function populateTtsVoices(voices) {
+        // Clear existing options except the first one
+        while (ttsVoiceSelect.options.length > 1) {
+            ttsVoiceSelect.remove(1);
+        }
+        
+        // Add new voice options
+        voices.forEach(voice => {
+            const option = document.createElement('option');
+            option.value = voice.name;
+            const description = voice.description || voice.name;
+            option.textContent = `${voice.name} (${voice.language || 'Unknown'})`;
+            ttsVoiceSelect.appendChild(option);
+        });
+    }
+    
+    // Utility function to format bytes
+    function formatBytes(bytes, decimals = 2) {
+        if (bytes === 0) return '0 Bytes';
+        
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+        
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
 });
 </script>
 {% endblock %}
