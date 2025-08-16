@@ -10,7 +10,7 @@
     </div>
     
     <form method="POST" class="space-y-8">
-        {{ csrf_token() }}
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <!-- Profile Settings -->
         <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
             <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Profile Settings</h2>
