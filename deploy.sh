@@ -44,41 +44,55 @@ echo "🗑️  Removing old .env file..."
 rm -f .env
 
 echo "📝 Creating fresh .env file..."
-cat > .env << 'EOF'
-# Best Friend AI Companion Environment Configuration
-# Generated automatically by deploy.sh - DO NOT EDIT MANUALLY
+{
+    echo "# Best Friend AI Companion Environment Configuration"
+    echo "# Generated automatically by deploy.sh - DO NOT EDIT MANUALLY"
+    echo ""
+    echo "# Database Configuration"
+    echo "DATABASE_URL=postgresql://bestfriend:bestfriend@localhost:5432/bestfriend"
+    echo "REDIS_URL=redis://localhost:6379/0"
+    echo ""
+    echo "# Ollama Configuration (Remote)"
+    echo "OLLAMA_BASE_URL=http://your-ollama-server:11434"
+    echo "OLLAMA_MODEL=llama3.1:8b"
+    echo "EMBED_MODEL=nomic-embed-text"
+    echo ""
+    echo "# TTS Configuration"
+    echo "TTS_URL=http://localhost:5500"
+    echo "TTS_VOICE=en_US-amy-low"
+    echo ""
+    echo "# STT Configuration"
+    echo "STT_LANGUAGE=en"
+    echo ""
+    echo "# Security Keys (will be generated automatically)"
+    echo "FERNET_KEY=your-fernet-key-here"
+    echo "SECRET_KEY=your-secret-key-here"
+    echo ""
+    echo "# Application Settings"
+    echo "DEBUG=false"
+    echo "LOG_LEVEL=INFO"
+    echo "MAX_UPLOAD_SIZE=16777216"
+    echo "RATE_LIMIT_PER_MINUTE=60"
+    echo "RATE_LIMIT_PER_HOUR=1000"
+    echo ""
+    echo "# Admin User (will be created automatically)"
+    echo "ADMIN_EMAIL=admin@bestfriend.local"
+    echo "ADMIN_PASSWORD=admin123"
+} > .env
 
-# Database Configuration
-DATABASE_URL=postgresql://bestfriend:bestfriend@localhost:5432/bestfriend
-REDIS_URL=redis://localhost:6379/0
+# Verify .env file was created properly
+echo "🔍 Verifying .env file creation..."
+if [ ! -f .env ]; then
+    echo "❌ .env file was not created!"
+    exit 1
+fi
 
-# Ollama Configuration (Remote)
-OLLAMA_BASE_URL=http://your-ollama-server:11434
-OLLAMA_MODEL=llama3.1:8b
-EMBED_MODEL=nomic-embed-text
+if [ ! -s .env ]; then
+    echo "❌ .env file is empty!"
+    exit 1
+fi
 
-# TTS Configuration
-TTS_URL=http://localhost:5500
-TTS_VOICE=en_US-amy-low
-
-# STT Configuration
-STT_LANGUAGE=en
-
-# Security Keys (will be generated automatically)
-FERNET_KEY=your-fernet-key-here
-SECRET_KEY=your-secret-key-here
-
-# Application Settings
-DEBUG=false
-LOG_LEVEL=INFO
-MAX_UPLOAD_SIZE=16777216
-RATE_LIMIT_PER_MINUTE=60
-RATE_LIMIT_PER_HOUR=1000
-
-# Admin User (will be created automatically)
-ADMIN_EMAIL=admin@bestfriend.local
-ADMIN_PASSWORD=admin123
-EOF
+echo "✅ .env file created successfully with $(wc -l < .env) lines"
 
 # Generate Fernet key if not present
 if ! grep -q "FERNET_KEY=" .env || grep -q "your-fernet-key-here" .env; then
