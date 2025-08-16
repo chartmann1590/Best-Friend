@@ -3,7 +3,7 @@ from datetime import timedelta
 
 class Config:
     """Base configuration class."""
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'ZGV2LXNlY3JldC1rZXktY2hhbmdlLWluLXByb2R1Y3Rpb24tMTIzNDU2Nzg5MA=='
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'postgresql://bestfriend:bestfriend@localhost:5432/bestfriend'
     REDIS_URL = os.environ.get('REDIS_URL') or 'redis://localhost:6379/0'
@@ -21,7 +21,7 @@ class Config:
     STT_LANGUAGE = os.environ.get('STT_LANGUAGE') or 'en'
     
     # Security
-    FERNET_KEY = os.environ.get('FERNET_KEY') or 'dev-fernet-key-change-in-production'
+    FERNET_KEY = os.environ.get('FERNET_KEY') or 'dGV2LWZlcm5ldC1rZXktY2hhbmdlLWluLXByb2R1Y3Rpb24tMTIzNDU2Nzg5MA=='
     SESSION_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'

@@ -12,13 +12,16 @@ class SecurityService:
         """Initialize Fernet cipher for encryption."""
         key = self.app.config.get('FERNET_KEY')
         if not key:
-            raise ValueError("FERNET_KEY not configured")
+            raise ValueError("FERNET_KEY not configured. Please set FERNET_KEY environment variable or check configuration.")
         
         # Ensure key is properly formatted
         if len(key) != 44:  # Base64 encoded 32-byte key
-            raise ValueError("FERNET_KEY must be a 32-byte base64-encoded string")
+            raise ValueError(f"FERNET_KEY must be a 32-byte base64-encoded string (got {len(key)} characters). Current value: {key[:20]}...")
         
-        self.fernet = Fernet(key.encode())
+        try:
+            self.fernet = Fernet(key.encode())
+        except Exception as e:
+            raise ValueError(f"Invalid FERNET_KEY format: {str(e)}. Please ensure it's a valid base64-encoded 32-byte key.")
     
     def encrypt_value(self, value):
         """Encrypt a string value."""
