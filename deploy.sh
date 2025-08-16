@@ -87,9 +87,33 @@ if ! grep -q "SECRET_KEY=" .env || grep -q "your-secret-key-here" .env; then
     fi
 fi
 
-# Export environment variables for Docker Compose
+# Load environment variables for Docker Compose
 echo "🔧 Loading environment variables..."
-export $(grep -v '^#' .env | xargs)
+
+# Debug: Show .env file contents (without showing full keys)
+echo "📋 .env file contents:"
+grep -E "^(FERNET_KEY|SECRET_KEY)=" .env | sed 's/=.*/=***HIDDEN***/'
+
+# Load environment variables
+set -a  # automatically export all variables
+source .env
+set +a  # stop automatically exporting
+
+# Verify environment variables are loaded
+echo "🔍 Verifying environment variables..."
+if [ -n "$FERNET_KEY" ]; then
+    echo "✅ FERNET_KEY loaded: ${FERNET_KEY:0:20}..."
+else
+    echo "❌ FERNET_KEY not loaded!"
+    exit 1
+fi
+
+if [ -n "$SECRET_KEY" ]; then
+    echo "✅ SECRET_KEY loaded: ${SECRET_KEY:0:20}..."
+else
+    echo "❌ SECRET_KEY not loaded!"
+    exit 1
+fi
 
 # Build and start containers
 echo "🐳 Building and starting containers..."
