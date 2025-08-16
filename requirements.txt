@@ -4,6 +4,7 @@ Flask-Login
 Flask-Limiter
 Flask-WTF
 Flask-Migrate
+Flask-Session
 gunicorn
 psycopg2-binary
 redis

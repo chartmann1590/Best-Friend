@@ -18,7 +18,8 @@
         </div>
         
         <form class="mt-8 space-y-6" method="POST">
-            {{ csrf_token() }}
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <!-- Debug: CSRF Token: {{ csrf_token() }} -->
             <div class="rounded-md shadow-sm -space-y-px">
                 <div>
                     <label for="email" class="sr-only">Email address</label>

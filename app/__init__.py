@@ -5,6 +5,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
+from flask_session import Session
 import os
 
 # Initialize extensions
@@ -13,6 +14,7 @@ login_manager = LoginManager()
 limiter = Limiter(key_func=get_remote_address)
 migrate = Migrate()
 csrf = CSRFProtect()
+session = Session()
 
 def create_app(config_name=None):
     app = Flask(__name__)
@@ -32,6 +34,7 @@ def create_app(config_name=None):
     login_manager.init_app(app)
     limiter.init_app(app)
     migrate.init_app(app, db)
+    session.init_app(app)
     csrf.init_app(app)
     
     # Configure login manager
