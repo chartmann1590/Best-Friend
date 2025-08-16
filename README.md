@@ -134,6 +134,57 @@ TTS_URL=http://opentts:5500
 TTS_VOICE=en_US-amy-low
 ```
 
+### AI Service Configuration
+
+#### Ollama Server Setup
+```bash
+# Example Ollama server configuration
+OLLAMA_URL=http://10.0.0.121:11434
+OLLAMA_MODEL=llama3.1:8b
+
+# Test connection and discover models
+# Use the "Test" button in settings to verify connectivity
+```
+
+#### OpenTTS Server Setup
+```bash
+# Example TTS server configuration
+TTS_URL=http://10.0.0.121:5500
+TTS_VOICE=en_US-amy-low
+
+# Test connection and discover voices
+# Use the "Test" button in settings to verify connectivity
+```
+
+### Common Configuration Scenarios
+
+#### Local Development
+```bash
+FLASK_ENV=development
+DEBUG=true
+DATABASE_URL=postgresql://localhost/bestfriend_dev
+```
+
+#### Production Deployment
+```bash
+FLASK_ENV=production
+DEBUG=false
+DATABASE_URL=postgresql://user:pass@db/bestfriend
+SECURE_COOKIES=true
+```
+
+#### Multi-Server Setup
+```bash
+# Primary Ollama server
+OLLAMA_URL=http://primary-server:11434
+
+# Backup Ollama server
+OLLAMA_BACKUP_URL=http://backup-server:11434
+
+# Load balancer configuration
+NGINX_UPSTREAM=upstream_ollama
+```
+
 ### Ollama Configuration
 
 **Important**: This application uses a remote Ollama server. You need to:
@@ -263,13 +314,28 @@ docker compose exec -T db psql -U bestfriend bestfriend < backup.sql
 
 Comprehensive documentation is available in the `/docs` directory:
 
+### 🏗️ **System Documentation**
 - **[Architecture](docs/ARCHITECTURE.md)** - System design and technical details
 - **[Configuration](docs/CONFIGURATION.md)** - Setup and configuration options
 - **[API Reference](docs/API.md)** - Complete API documentation
 - **[Deployment](docs/DEPLOYMENT.md)** - Production deployment guide
 - **[Operations](docs/OPERATIONS.md)** - Maintenance and operations
+
+### 🔒 **Security & Privacy**
 - **[Security](docs/SECURITY.md)** - Security policies and procedures
 - **[Privacy](docs/PRIVACY.md)** - Privacy policy and data handling
+
+### 🤖 **AI Service Integration**
+- **[Ollama Integration](docs/OLLAMA.md)** - Complete guide to Ollama LLM server setup and management
+- **[OpenTTS Integration](docs/OPENTTS.md)** - Comprehensive guide to text-to-speech setup and voice management
+
+### 👤 **User Experience**
+- **[User Guide](docs/USER_GUIDE.md)** - Complete user manual with setup, features, and troubleshooting
+
+### 📚 **Quick Reference**
+- **[Quick Start Guide](#-quick-start)** - Get up and running in minutes
+- **[Configuration Examples](#️-configuration)** - Common configuration scenarios
+- **[Troubleshooting](#-troubleshooting)** - Common issues and solutions
 
 ## 🤝 Contributing
 
@@ -288,6 +354,33 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Issues**: Report bugs and feature requests on GitHub
 - **Documentation**: See `/docs` directory for detailed guides
 - **Security**: Report security issues privately
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### Connection Problems
+- **Ollama Server**: Check server URL and ensure Ollama is running
+- **TTS Server**: Verify OpenTTS server connectivity and voice availability
+- **Database**: Ensure PostgreSQL is running and accessible
+
+#### Voice Issues
+- **Microphone Access**: Grant browser permissions and check device settings
+- **TTS Not Working**: Verify TTS server connection and voice selection
+- **Audio Quality**: Adjust speaking rate and pitch settings
+
+#### Performance Issues
+- **Slow Responses**: Check server resources and model complexity
+- **High Memory Usage**: Optimize model settings and server configuration
+
+### Getting Help
+
+1. **Check Documentation**: Review the comprehensive guides in `/docs`
+2. **Test Connections**: Use built-in test functions in settings
+3. **Review Logs**: Check application and service logs
+4. **Community Support**: Report issues on GitHub
+
+For detailed troubleshooting, see the [User Guide](docs/USER_GUIDE.md) and service-specific documentation.
 
 ## 🛣️ Roadmap
 
