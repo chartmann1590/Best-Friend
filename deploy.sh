@@ -44,41 +44,41 @@ echo "🗑️  Removing old .env file..."
 rm -f .env
 
 echo "📝 Creating fresh .env file..."
-{
-    echo "# Best Friend AI Companion Environment Configuration"
-    echo "# Generated automatically by deploy.sh - DO NOT EDIT MANUALLY"
-    echo ""
-    echo "# Database Configuration"
-    echo "DATABASE_URL=postgresql://bestfriend:bestfriend@localhost:5432/bestfriend"
-    echo "REDIS_URL=redis://localhost:6379/0"
-    echo ""
-    echo "# Ollama Configuration (Remote)"
-    echo "OLLAMA_BASE_URL=http://your-ollama-server:11434"
-    echo "OLLAMA_MODEL=llama3.1:8b"
-    echo "EMBED_MODEL=nomic-embed-text"
-    echo ""
-    echo "# TTS Configuration"
-    echo "TTS_URL=http://localhost:5500"
-    echo "TTS_VOICE=en_US-amy-low"
-    echo ""
-    echo "# STT Configuration"
-    echo "STT_LANGUAGE=en"
-    echo ""
-    echo "# Security Keys (will be generated automatically)"
-    echo "FERNET_KEY=your-fernet-key-here"
-    echo "SECRET_KEY=your-secret-key-here"
-    echo ""
-    echo "# Application Settings"
-    echo "DEBUG=false"
-    echo "LOG_LEVEL=INFO"
-    echo "MAX_UPLOAD_SIZE=16777216"
-    echo "RATE_LIMIT_PER_MINUTE=60"
-    echo "RATE_LIMIT_PER_HOUR=1000"
-    echo ""
-    echo "# Admin User (will be created automatically)"
-    echo "ADMIN_EMAIL=admin@bestfriend.local"
-    echo "ADMIN_PASSWORD=admin123"
-} > .env
+cat > .env << 'EOF'
+# Best Friend AI Companion Environment Configuration
+# Generated automatically by deploy.sh - DO NOT EDIT MANUALLY
+
+# Database Configuration
+DATABASE_URL=postgresql://bestfriend:bestfriend@localhost:5432/bestfriend
+REDIS_URL=redis://localhost:6379/0
+
+# Ollama Configuration (Remote)
+OLLAMA_BASE_URL=http://your-ollama-server:11434
+OLLAMA_MODEL=llama3.1:8b
+EMBED_MODEL=nomic-embed-text
+
+# TTS Configuration
+TTS_URL=http://localhost:5500
+TTS_VOICE=en_US-amy-low
+
+# STT Configuration
+STT_LANGUAGE=en
+
+# Security Keys (will be generated automatically)
+FERNET_KEY=your-fernet-key-here
+SECRET_KEY=your-secret-key-here
+
+# Application Settings
+DEBUG=false
+LOG_LEVEL=INFO
+MAX_UPLOAD_SIZE=16777216
+RATE_LIMIT_PER_MINUTE=60
+RATE_LIMIT_PER_HOUR=1000
+
+# Admin User (will be created automatically)
+ADMIN_EMAIL=admin@bestfriend.local
+ADMIN_PASSWORD=admin123
+EOF
 
 # Verify .env file was created properly
 echo "🔍 Verifying .env file creation..."
@@ -104,11 +104,12 @@ if ! grep -q "FERNET_KEY=" .env || grep -q "your-fernet-key-here" .env; then
     else
         echo "⚠️  Python cryptography module not available, using OpenSSL fallback..."
         # Generate exactly 32 bytes and base64 encode for Fernet compatibility
-        FERNET_KEY=$(openssl rand 32 | base64)
+        FERNET_KEY=$(openssl rand 32 | base64 | tr -d '\n')
         echo "✅ Fernet key generated using OpenSSL"
     fi
-    # Use awk for safer replacement (handles special characters better)
-    awk -v key="$FERNET_KEY" 'sub(/^FERNET_KEY=.*/, "FERNET_KEY=" key)' .env > .env.tmp && mv .env.tmp .env
+    
+    # Use sed with delimiter that won't conflict with base64 characters
+    sed -i "s|^FERNET_KEY=.*|FERNET_KEY=${FERNET_KEY}|" .env
     
     # Validate the generated key
     if [ ${#FERNET_KEY} -eq 44 ]; then
@@ -122,10 +123,11 @@ fi
 if ! grep -q "SECRET_KEY=" .env || grep -q "your-secret-key-here" .env; then
     echo "🔑 Generating secret key..."
     # Use OpenSSL for consistent 44-character base64-encoded keys
-    SECRET_KEY=$(openssl rand 32 | base64)
+    SECRET_KEY=$(openssl rand 32 | base64 | tr -d '\n')
     echo "✅ Secret key generated using OpenSSL"
-    # Use awk for safer replacement
-    awk -v key="$SECRET_KEY" 'sub(/^SECRET_KEY=.*/, "SECRET_KEY=" key)' .env > .env.tmp && mv .env.tmp .env
+    
+    # Use sed with delimiter that won't conflict with base64 characters
+    sed -i "s|^SECRET_KEY=.*|SECRET_KEY=${SECRET_KEY}|" .env
     
     # Validate the generated key
     if [ ${#SECRET_KEY} -eq 44 ]; then
@@ -135,45 +137,57 @@ if ! grep -q "SECRET_KEY=" .env || grep -q "your-secret-key-here" .env; then
     fi
 fi
 
-# Load environment variables for Docker Compose
-echo "🔧 Loading environment variables..."
+# Export environment variables for Docker Compose
+echo "🔧 Exporting environment variables for Docker Compose..."
 
-# Debug: Show .env file contents and line count
-echo "📋 .env file contents (${#FERNET_KEY} chars for FERNET_KEY, ${#SECRET_KEY} chars for SECRET_KEY):"
-echo "📄 .env file line count: $(wc -l < .env)"
-grep -E "^(FERNET_KEY|SECRET_KEY)=" .env | sed 's/=.*/=***HIDDEN***/'
-echo "🔍 Full .env file:"
-cat .env
+# Read the .env file and export each variable
+while IFS='=' read -r key value; do
+    # Skip comments and empty lines
+    if [[ ! "$key" =~ ^#.*$ ]] && [[ -n "$key" ]]; then
+        # Remove any surrounding quotes from the value
+        value="${value%\"}"
+        value="${value#\"}"
+        value="${value%\'}"
+        value="${value#\'}"
+        # Export the variable
+        export "$key=$value"
+    fi
+done < .env
 
-# Load environment variables
-set -a  # automatically export all variables
-source .env
-set +a  # stop automatically exporting
-
-# Verify environment variables are loaded
-echo "🔍 Verifying environment variables..."
+# Verify critical environment variables are exported
+echo "🔍 Verifying exported environment variables..."
 if [ -n "$FERNET_KEY" ]; then
-    echo "✅ FERNET_KEY loaded: ${FERNET_KEY:0:20}..."
+    echo "✅ FERNET_KEY exported: ${FERNET_KEY:0:20}..."
 else
-    echo "❌ FERNET_KEY not loaded!"
+    echo "❌ FERNET_KEY not exported!"
     exit 1
 fi
 
 if [ -n "$SECRET_KEY" ]; then
-    echo "✅ SECRET_KEY loaded: ${SECRET_KEY:0:20}..."
+    echo "✅ SECRET_KEY exported: ${SECRET_KEY:0:20}..."
 else
-    echo "❌ SECRET_KEY not loaded!"
+    echo "❌ SECRET_KEY not exported!"
     exit 1
 fi
 
-# Build and start containers
+# Alternative method: Use --env-file flag with docker compose
+echo "📋 Using .env file with Docker Compose..."
+
+# Build and start containers with explicit env file
 echo "🐳 Building and starting containers..."
-$COMPOSE_CMD pull
-$COMPOSE_CMD up -d --build
+$COMPOSE_CMD --env-file .env pull
+$COMPOSE_CMD --env-file .env up -d --build
 
 # Wait for database to be ready
 echo "⏳ Waiting for database to be ready..."
-sleep 10
+for i in {1..30}; do
+    if $COMPOSE_CMD exec -T db pg_isready -U bestfriend > /dev/null 2>&1; then
+        echo "✅ Database is ready!"
+        break
+    fi
+    echo "   Waiting for database... ($i/30)"
+    sleep 2
+done
 
 # Run database migrations
 echo "🗄️  Running database migrations..."
@@ -183,11 +197,17 @@ $COMPOSE_CMD exec -T web flask db upgrade || echo "⚠️  Migration failed, but
 echo "👤 Setting up admin user..."
 $COMPOSE_CMD exec -T web flask create-admin || echo "⚠️  Admin setup failed, but continuing..."
 
+# Get the actual IP address
+IP_ADDRESS=$(hostname -I | awk '{print $1}' | head -1)
+if [ -z "$IP_ADDRESS" ]; then
+    IP_ADDRESS="localhost"
+fi
+
 echo ""
 echo "🎉 Deployment complete!"
 echo ""
 echo "📱 Access your Best Friend AI Companion at:"
-echo "   https://$(hostname -I | awk '{print $1}' | head -1)"
+echo "   https://${IP_ADDRESS}"
 echo "   or https://localhost"
 echo ""
 echo "🔧 Admin credentials (from .env file):"
@@ -198,6 +218,13 @@ echo "📋 Useful commands:"
 echo "   View logs: $COMPOSE_CMD logs -f"
 echo "   Stop services: $COMPOSE_CMD down"
 echo "   Restart services: $COMPOSE_CMD restart"
+echo "   View web logs: $COMPOSE_CMD logs -f web"
+echo "   View nginx logs: $COMPOSE_CMD logs -f nginx"
+echo "   Connect to database: $COMPOSE_CMD exec db psql -U bestfriend"
 echo ""
 echo "⚠️  Note: This is using a self-signed certificate."
 echo "   You'll need to accept the security warning in your browser."
+echo ""
+echo "💡 Troubleshooting:"
+echo "   If services fail to start, check logs with: $COMPOSE_CMD logs"
+echo "   To rebuild from scratch: $COMPOSE_CMD down -v && ./deploy.sh"
