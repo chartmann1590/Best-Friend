@@ -127,32 +127,19 @@ def test_tts_connection():
         voices_data = response.json()
         voices = []
         
-        # Use the same robust voice parsing as the TTS service
-        if isinstance(voices_data, list):
-            # Direct list of voices
-            for voice in voices_data:
-                voices.append(self._parse_voice_data(voice))
-        elif isinstance(voices_data, dict):
-            # Check for different possible structures
-            if 'voices' in voices_data:
-                # OpenTTS format: {"voices": [...]}
-                for voice in voices_data['voices']:
-                    voices.append(self._parse_voice_data(voice))
-            elif 'data' in voices_data:
-                # Alternative format: {"data": [...]}
-                for voice in voices_data['data']:
-                    voices.append(self._parse_voice_data(voice))
-            else:
-                # Try to find any list in the response
-                for key, value in voices_data.items():
-                    if isinstance(value, list):
-                        for voice in value:
-                            voices.append(self._parse_voice_data(voice))
-                        break
+        # OpenTTS returns an object with voice keys
+        # Format: {"espeak:en": {...}, "espeak:de": {...}, ...}
+        if isinstance(voices_data, dict):
+            for voice_key, voice_info in voices_data.items():
+                # voice_key format: "tts:voice" (e.g., "espeak:en", "flite:en-us")
+                if isinstance(voice_info, dict):
+                    voice = self._parse_opentts_voice(voice_key, voice_info)
+                    if voice:
+                        voices.append(voice)
         
         # Log for debugging
-        print(f"TTS response format: {type(voices_data)}, found {len(voices)} voices")
-        print(f"Raw TTS response: {voices_data}")
+        print(f"OpenTTS response format: {type(voices_data)}, found {len(voices)} voices")
+        print(f"Raw OpenTTS response: {voices_data}")
         if voices:
             print(f"Sample voice: {voices[0]}")
         
@@ -174,8 +161,61 @@ def test_tts_connection():
             'error': f'Unexpected error: {str(e)}'
         }), 500
 
+    def _parse_opentts_voice(self, voice_key: str, voice_info: dict) -> dict:
+        """Parse OpenTTS voice data from API response."""
+        try:
+            # voice_key format: "tts:voice" (e.g., "espeak:en", "flite:en-us")
+            # voice_info contains the voice details
+            
+            # Extract TTS system and voice name from key
+            if ':' in voice_key:
+                tts_system, voice_name = voice_key.split(':', 1)
+            else:
+                tts_system = 'unknown'
+                voice_name = voice_key
+            
+            # Get voice details from voice_info
+            language = voice_info.get('language', '')
+            locale = voice_info.get('locale', '')
+            gender = voice_info.get('gender', '')
+            
+            # Build display name
+            display_name = f"{tts_system}:{voice_name}"
+            if locale:
+                display_name += f" ({locale})"
+            if gender:
+                display_name += f" [{gender}]"
+            
+            # Build description
+            description_parts = []
+            if tts_system:
+                description_parts.append(f"TTS: {tts_system}")
+            if language:
+                description_parts.append(f"Language: {language}")
+            if locale:
+                description_parts.append(f"Locale: {locale}")
+            if gender:
+                description_parts.append(f"Gender: {gender}")
+            
+            description = " | ".join(description_parts) if description_parts else display_name
+            
+            return {
+                'id': voice_key,  # Use the full voice key as ID (e.g., "espeak:en")
+                'name': display_name,  # Human-readable display name
+                'language': language or 'Unknown',
+                'gender': gender or 'Unknown',
+                'description': description,
+                'tts_system': tts_system,
+                'voice_name': voice_name,
+                'locale': locale or ''
+            }
+            
+        except Exception as e:
+            print(f"Error parsing OpenTTS voice {voice_key}: {str(e)}")
+            return None
+    
     def _parse_voice_data(self, voice: dict) -> dict:
-        """Parse voice data from OpenTTS API response."""
+        """Parse voice data from generic TTS API response (fallback)."""
         # Handle different field names that OpenTTS might use
         voice_id = voice.get('id') or voice.get('name') or voice.get('voice_id') or ''
         voice_name = voice.get('name') or voice.get('display_name') or voice_id or 'Unknown'
@@ -188,8 +228,6 @@ def test_tts_connection():
             voice_id = voice_id.strip()
         if isinstance(voice_name, str):
             voice_name = voice_name.strip()
-        if isinstance(language, str):
-            language = language.strip()
         if isinstance(gender, str):
             gender = gender.strip()
         if isinstance(description, str):
