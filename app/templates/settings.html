@@ -142,8 +142,28 @@
                                 class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
                             🔄
                         </button>
+                        <button type="button" id="previewVoiceBtn" 
+                                class="px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors">
+                            🔊
+                        </button>
                     </div>
                     <p class="text-sm text-gray-500 mt-1">Select from available voices on your server</p>
+                    <div id="voicePreviewStatus" class="mt-2 hidden">
+                        <div id="voicePreviewSuccess" class="hidden text-sm text-green-600 dark:text-green-400"></div>
+                        <div id="voicePreviewError" class="hidden text-sm text-red-600 dark:text-red-400"></div>
+                    </div>
+                    
+                    <!-- Voice Preview Text Input -->
+                    <div class="mt-3">
+                        <label for="previewText" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Preview Text</label>
+                        <div class="flex space-x-2">
+                            <input type="text" id="previewText" 
+                                   value="Hello, this is a voice preview. How do I sound?"
+                                   class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                                   placeholder="Enter text to preview the voice">
+                        </div>
+                        <p class="text-sm text-gray-500 mt-1">Customize the text used for voice preview</p>
+                    </div>
                 </div>
                 
                 <div>
@@ -512,6 +532,96 @@ document.addEventListener('DOMContentLoaded', function() {
             refreshTtsVoicesBtn.textContent = '🔄';
         }
     });
+    
+    // Voice Preview Button
+    const previewVoiceBtn = document.getElementById('previewVoiceBtn');
+    const previewTextInput = document.getElementById('previewText');
+    const voicePreviewStatus = document.getElementById('voicePreviewStatus');
+    const voicePreviewSuccess = document.getElementById('voicePreviewSuccess');
+    const voicePreviewError = document.getElementById('voicePreviewError');
+    
+    previewVoiceBtn.addEventListener('click', async function() {
+        const selectedVoice = ttsVoiceSelect.value;
+        const previewText = previewTextInput.value.trim();
+        
+        if (!selectedVoice) {
+            showVoicePreviewError('Please select a voice first');
+            return;
+        }
+        
+        if (!previewText) {
+            showVoicePreviewError('Please enter preview text');
+            return;
+        }
+        
+        previewVoiceBtn.disabled = true;
+        previewVoiceBtn.textContent = '⏳';
+        
+        try {
+            const formData = new FormData();
+            formData.append('voice_id', selectedVoice);
+            formData.append('preview_text', previewText);
+            formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+            
+            const response = await fetch('{{ url_for("settings.preview_voice") }}', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showVoicePreviewSuccess('Voice preview generated successfully!');
+                // Play the audio preview
+                playAudioPreview(data.audio_data);
+            } else {
+                showVoicePreviewError(data.error);
+            }
+        } catch (error) {
+            console.error('Error generating voice preview:', error);
+            showVoicePreviewError('Failed to generate preview. Please try again.');
+        } finally {
+            previewVoiceBtn.disabled = false;
+            previewVoiceBtn.textContent = '🔊';
+        }
+    });
+    
+    function playAudioPreview(audioData) {
+        try {
+            // Convert base64 to audio blob
+            const byteCharacters = atob(audioData);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: 'audio/wav' });
+            
+            // Create audio element and play
+            const audio = new Audio(URL.createObjectURL(blob));
+            audio.play().catch(e => {
+                console.error('Error playing audio:', e);
+                showVoicePreviewError('Audio preview generated but could not play automatically');
+            });
+        } catch (error) {
+            console.error('Error processing audio preview:', error);
+            showVoicePreviewError('Error processing audio preview');
+        }
+    }
+    
+    function showVoicePreviewSuccess(message) {
+        voicePreviewStatus.classList.remove('hidden');
+        voicePreviewSuccess.textContent = message;
+        voicePreviewSuccess.classList.remove('hidden');
+        voicePreviewError.classList.add('hidden');
+    }
+    
+    function showVoicePreviewError(message) {
+        voicePreviewStatus.classList.remove('hidden');
+        voicePreviewError.textContent = message;
+        voicePreviewError.classList.add('hidden');
+        voicePreviewSuccess.classList.remove('hidden');
+    }
     
     function showTtsSuccess(message) {
         ttsStatus.classList.remove('hidden');

@@ -161,3 +161,45 @@ def test_tts_connection():
             'success': False,
             'error': f'Unexpected error: {str(e)}'
         }), 500
+
+@settings_bp.route('/api/preview-voice', methods=['POST'])
+@login_required
+def preview_voice():
+    """Preview a TTS voice with sample text."""
+    try:
+        validate_csrf(request.form.get('csrf_token'))
+    except BadRequest:
+        return jsonify({'error': 'CSRF token validation failed'}), 400
+    
+    voice_id = request.form.get('voice_id', '').strip()
+    preview_text = request.form.get('preview_text', 'Hello, this is a voice preview.').strip()
+    
+    if not voice_id:
+        return jsonify({'error': 'Voice ID is required'}), 400
+    
+    try:
+        # Get TTS service and generate preview
+        tts_service = current_app.tts_service
+        audio_data = tts_service.preview_voice(voice_id, current_user.id, preview_text)
+        
+        if audio_data:
+            # Return audio data as base64 encoded string
+            import base64
+            audio_b64 = base64.b64encode(audio_data).decode('utf-8')
+            
+            return jsonify({
+                'success': True,
+                'audio_data': audio_b64,
+                'message': f'Voice preview generated successfully'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to generate voice preview'
+            }), 400
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Unexpected error: {str(e)}'
+        }), 500
