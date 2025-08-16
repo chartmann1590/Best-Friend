@@ -10,17 +10,36 @@ logger = logging.getLogger(__name__)
 class TTSService:
     def __init__(self, app):
         self.app = app
-        self.base_url = app.config.get('TTS_URL', 'http://localhost:5500')
+        # Default fallback values (will be overridden by user settings)
+        self.default_base_url = app.config.get('TTS_URL', 'http://localhost:5500')
         self.default_voice = app.config.get('TTS_VOICE', 'en_US-amy-low')
     
-    def synthesize_speech(self, text: str, voice: Optional[str] = None, 
+    def _get_user_settings(self, user_id):
+        """Get TTS settings for a specific user."""
+        from app.models import Setting
+        
+        try:
+            tts_url_setting = Setting.query.filter_by(user_id=user_id, key='tts_url').first()
+            tts_voice_setting = Setting.query.filter_by(user_id=user_id, key='tts_voice').first()
+            
+            base_url = tts_url_setting.get_value() if tts_url_setting else self.default_base_url
+            voice = tts_voice_setting.get_value() if tts_voice_setting else self.default_voice
+            
+            return base_url, voice
+        except Exception as e:
+            logger.error(f"Error getting user TTS settings: {str(e)}")
+            return self.default_base_url, self.default_voice
+    
+    def synthesize_speech(self, text: str, user_id: int, voice: Optional[str] = None, 
                          speed: float = 1.0, pitch: float = 1.0) -> Optional[bytes]:
         """Synthesize text to speech audio."""
-        voice = voice or self.default_voice
+        # Get user's TTS settings
+        base_url, user_voice = self._get_user_settings(user_id)
+        voice = voice or user_voice
         
         try:
             # OpenTTS synthesis endpoint
-            url = f"{self.base_url}/api/tts"
+            url = f"{base_url}/api/tts"
             
             params = {
                 'voice': voice,
@@ -48,14 +67,16 @@ class TTSService:
             logger.error(f"Unexpected error in TTS: {str(e)}")
             return None
     
-    def stream_speech(self, text: str, voice: Optional[str] = None,
+    def stream_speech(self, text: str, user_id: int, voice: Optional[str] = None,
                      speed: float = 1.0, pitch: float = 1.0) -> Optional[BinaryIO]:
         """Stream speech synthesis for real-time playback."""
-        voice = voice or self.default_voice
+        # Get user's TTS settings
+        base_url, user_voice = self._get_user_settings(user_id)
+        voice = voice or user_voice
         
         try:
             # OpenTTS streaming endpoint
-            url = f"{self.base_url}/api/tts"
+            url = f"{base_url}/api/tts"
             
             params = {
                 'voice': voice,
@@ -92,10 +113,11 @@ class TTSService:
             logger.error(f"Unexpected error in TTS streaming: {str(e)}")
             return None
     
-    def get_available_voices(self) -> list:
+    def get_available_voices(self, user_id: int) -> list:
         """Get list of available voices."""
         try:
-            response = requests.get(f"{self.base_url}/api/voices", timeout=10)
+            base_url, _ = self._get_user_settings(user_id)
+            response = requests.get(f"{base_url}/api/voices", timeout=10)
             
             if response.status_code == 200:
                 voices_data = response.json()
@@ -149,18 +171,18 @@ class TTSService:
             logger.error(f"Unexpected error getting voice info: {str(e)}")
             return None
     
-    def test_voice(self, voice_id: str, test_text: str = "Hello, this is a test.") -> bool:
+    def test_voice(self, voice_id: str, user_id: int, test_text: str = "Hello, this is a test.") -> bool:
         """Test if a voice is working with a short text."""
         try:
-            audio_data = self.synthesize_speech(test_text, voice_id)
+            audio_data = self.synthesize_speech(test_text, user_id, voice_id)
             return audio_data is not None and len(audio_data) > 0
         except Exception as e:
             logger.error(f"Voice test failed for {voice_id}: {str(e)}")
             return False
     
-    def get_supported_languages(self) -> list:
+    def get_supported_languages(self, user_id: int) -> list:
         """Get list of supported languages."""
-        voices = self.get_available_voices()
+        voices = self.get_available_voices(user_id)
         languages = set()
         
         for voice in voices:
@@ -169,9 +191,9 @@ class TTSService:
         
         return sorted(list(languages))
     
-    def find_voice_by_language(self, language: str, gender: Optional[str] = None) -> Optional[str]:
+    def find_voice_by_language(self, language: str, user_id: int, gender: Optional[str] = None) -> Optional[str]:
         """Find a voice ID for a specific language and optional gender."""
-        voices = self.get_available_voices()
+        voices = self.get_available_voices(user_id)
         
         for voice in voices:
             if voice.get('language') == language:
@@ -185,18 +207,20 @@ class TTSService:
         
         return None
     
-    def health_check(self) -> bool:
+    def health_check(self, user_id: int) -> bool:
         """Check if TTS service is healthy."""
         try:
-            response = requests.get(f"{self.base_url}/api/voices", timeout=5)
+            base_url, _ = self._get_user_settings(user_id)
+            response = requests.get(f"{base_url}/api/voices", timeout=5)
             return response.status_code == 200
         except:
             return False
     
-    def get_service_info(self) -> Dict[str, Any]:
+    def get_service_info(self, user_id: int) -> Dict[str, Any]:
         """Get TTS service information."""
         try:
-            response = requests.get(f"{self.base_url}/api/info", timeout=10)
+            base_url, _ = self._get_user_settings(user_id)
+            response = requests.get(f"{base_url}/api/info", timeout=10)
             
             if response.status_code == 200:
                 return response.json()

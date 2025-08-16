@@ -22,7 +22,7 @@ class MemoryService:
         
         try:
             # Generate embedding for the content
-            embedding = self._generate_embedding(content)
+            embedding = self._generate_embedding(content, user_id)
             if not embedding:
                 log_error(
                     Exception("Embedding generation failed"),
@@ -68,7 +68,7 @@ class MemoryService:
         
         try:
             # Generate embedding for query
-            query_embedding = self._generate_embedding(query)
+            query_embedding = self._generate_embedding(query, user_id)
             if not query_embedding:
                 return []
             
@@ -195,11 +195,11 @@ class MemoryService:
             metadata={'message_count': len(messages)}
         )
     
-    def _generate_embedding(self, text: str) -> Optional[List[float]]:
+    def _generate_embedding(self, text: str, user_id: int) -> Optional[List[float]]:
         """Generate embedding using Ollama."""
         try:
             ollama_client = current_app.ollama_client
-            return ollama_client.generate_embedding(text)
+            return ollama_client.generate_embedding(text, user_id)
         except Exception as e:
             logger.error(f"Error generating embedding: {str(e)}")
             return None

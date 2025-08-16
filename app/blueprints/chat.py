@@ -70,7 +70,7 @@ def chat():
         
         # Get AI response from Ollama
         ollama_client = current_app.ollama_client
-        ai_response = ollama_client.generate_response(system_prompt)
+        ai_response = ollama_client.generate_response(system_prompt, current_user.id)
         
         # Create memory from this conversation turn
         if current_app.memory_service:
@@ -156,7 +156,7 @@ def text_to_speech_stream():
     
     # Generate speech using TTS service
     tts_service = current_app.tts_service
-    audio_data = tts_service.synthesize_speech(text)
+    audio_data = tts_service.synthesize_speech(text, current_user.id)
     
     if audio_data:
         # Return audio data as response

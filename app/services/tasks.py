@@ -32,7 +32,7 @@ def summarize_conversation(user_id: int, conversation_id: str) -> Optional[Memor
         summary_prompt = prompt_service.build_summary_prompt(user_id, messages)
         
         ollama_client = current_app.ollama_client
-        summary = ollama_client.generate_response(summary_prompt)
+        summary = ollama_client.generate_response(summary_prompt, user_id)
         
         if summary:
             # Create memory from summary
