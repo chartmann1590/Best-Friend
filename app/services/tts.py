@@ -38,28 +38,56 @@ class TTSService:
         voice = voice or user_voice
         
         try:
-            # OpenTTS synthesis endpoint - uses GET with query parameters
-            url = f"{base_url}/api/tts"
+            # OpenTTS synthesis endpoint - try both /api/tts and /api/synthesize
+            # Some OpenTTS versions use different endpoints
+            base_urls = [
+                f"{base_url}/api/tts",
+                f"{base_url}/api/synthesize",
+                f"{base_url}/api/say"
+            ]
+            
+            # Ensure text is properly encoded and not empty
+            if not text or not text.strip():
+                logger.error("TTS synthesis failed: Empty or missing text")
+                return None
+            
+            # Clean and encode the text properly
+            clean_text = text.strip()
             
             params = {
                 'voice': voice,
-                'text': text
+                'text': clean_text
             }
             
-            # OpenTTS doesn't support speed/pitch in the basic API
-            # These would need to be handled by the TTS system itself
+            logger.info(f"TTS synthesis request: voice={voice}, text_length={len(clean_text)}")
             
-            response = requests.get(
-                url,
-                params=params,
-                timeout=45  # Increased timeout for slow TTS servers
-            )
+            # Try different OpenTTS endpoints
+            last_error = None
+            for url in base_urls:
+                try:
+                    logger.info(f"Trying TTS endpoint: {url}")
+                    
+                    response = requests.get(
+                        url,
+                        params=params,
+                        timeout=45  # Increased timeout for slow TTS servers
+                    )
+                    
+                    if response.status_code == 200:
+                        logger.info(f"TTS synthesis successful using endpoint: {url}")
+                        return response.content
+                    else:
+                        logger.warning(f"TTS endpoint {url} returned status {response.status_code}: {response.text[:200]}")
+                        last_error = f"HTTP {response.status_code}: {response.text[:100]}"
+                        
+                except requests.exceptions.RequestException as e:
+                    logger.warning(f"TTS endpoint {url} failed: {str(e)}")
+                    last_error = str(e)
+                    continue
             
-            if response.status_code == 200:
-                return response.content
-            else:
-                logger.error(f"TTS API error: {response.status_code} - {response.text}")
-                return None
+            # If we get here, all endpoints failed
+            logger.error(f"All TTS endpoints failed. Last error: {last_error}")
+            return None
                 
         except requests.exceptions.Timeout as e:
             logger.error(f"TTS API request timed out after 45 seconds: {str(e)}")
@@ -85,10 +113,20 @@ class TTSService:
             # OpenTTS streaming endpoint - uses GET with query parameters
             url = f"{base_url}/api/tts"
             
+            # Ensure text is properly encoded and not empty
+            if not text or not text.strip():
+                logger.error("TTS streaming failed: Empty or missing text")
+                return None
+            
+            # Clean and encode the text properly
+            clean_text = text.strip()
+            
             params = {
                 'voice': voice,
-                'text': text
+                'text': clean_text
             }
+            
+            logger.info(f"TTS streaming request: URL={url}, voice={voice}, text_length={len(clean_text)}")
             
             # OpenTTS doesn't support speed/pitch in the basic API
             # These would need to be handled by the TTS system itself
@@ -97,7 +135,7 @@ class TTSService:
                 url,
                 params=params,
                 stream=True,
-                timeout=30
+                timeout=45  # Increased timeout to match synthesis
             )
             
             if response.status_code == 200:

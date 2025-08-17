@@ -127,6 +127,10 @@
                             class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
                         Health
                     </button>
+                    <button type="button" id="ttsSimpleTestBtn" 
+                            class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors">
+                        Simple Test
+                    </button>
                 </div>
                 <p class="text-sm text-gray-500 mt-1">Enter the URL of your TTS server</p>
                 <div id="ttsStatus" class="mt-2 hidden">
@@ -603,6 +607,49 @@ document.addEventListener('DOMContentLoaded', function() {
         } finally {
             ttsHealthBtn.disabled = false;
             ttsHealthBtn.textContent = 'Health';
+        }
+    });
+    
+    // TTS Simple Test Button
+    const ttsSimpleTestBtn = document.getElementById('ttsSimpleTestBtn');
+    
+    ttsSimpleTestBtn.addEventListener('click', async function() {
+        const url = ttsUrlInput.value.trim();
+        if (!url) {
+            showTtsError('Please enter a TTS server URL first');
+            return;
+        }
+        
+        ttsSimpleTestBtn.disabled = true;
+        ttsSimpleTestBtn.textContent = 'Testing...';
+        
+        try {
+            const formData = new FormData();
+            formData.append('tts_url', url);
+            formData.append('voice', 'espeak:en');  // Use a common voice
+            formData.append('test_text', 'Hello world');  // Simple test text
+            formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+            
+            const response = await fetch('{{ url_for("settings.test_tts_simple") }}', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            console.log('TTS simple test response:', data);
+            
+            if (data.success) {
+                showTtsSuccess(`Simple Test: ${data.message} (${data.audio_size} bytes via ${data.endpoint})`);
+            } else {
+                showTtsError(`Simple Test Failed: ${data.error}`);
+            }
+        } catch (error) {
+            console.error('Error running TTS simple test:', error);
+            showTtsError('Simple test failed. Please try again.');
+        } finally {
+            ttsSimpleTestBtn.disabled = false;
+            ttsSimpleTestBtn.textContent = 'Simple Test';
         }
     });
     

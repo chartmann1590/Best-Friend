@@ -501,6 +501,75 @@ def delete_all_data():
         current_app.logger.error(f"Error deleting user data: {str(e)}")
         return jsonify({'success': False, 'error': 'Failed to delete data' }), 500
 
+@settings_bp.route('/api/test-tts-simple', methods=['POST'])
+@login_required
+def test_tts_simple():
+    """Simple TTS test to debug OpenTTS connection issues."""
+    try:
+        validate_csrf(request.form.get('csrf_token'))
+    except BadRequest:
+        return jsonify({'error': 'CSRF token validation failed'}), 400
+    
+    tts_url = request.form.get('tts_url', '').strip()
+    voice = request.form.get('voice', 'espeak:en').strip()
+    test_text = request.form.get('test_text', 'Hello world').strip()
+    
+    if not tts_url:
+        return jsonify({'error': 'TTS URL is required'}), 400
+    
+    try:
+        # Test basic TTS synthesis
+        import requests
+        
+        # Try different OpenTTS endpoints
+        endpoints = ['/api/tts', '/api/synthesize', '/api/say']
+        
+        for endpoint in endpoints:
+            try:
+                url = f"{tts_url}{endpoint}"
+                params = {
+                    'voice': voice,
+                    'text': test_text
+                }
+                
+                current_app.logger.info(f"Testing TTS endpoint: {url} with params: {params}")
+                
+                response = requests.get(url, params=params, timeout=30)
+                
+                current_app.logger.info(f"TTS endpoint {endpoint} response: {response.status_code}")
+                
+                if response.status_code == 200:
+                    audio_size = len(response.content)
+                    current_app.logger.info(f"TTS synthesis successful: {audio_size} bytes")
+                    
+                    return jsonify({
+                        'success': True,
+                        'message': f'TTS synthesis successful using {endpoint}',
+                        'endpoint': endpoint,
+                        'audio_size': audio_size,
+                        'voice': voice,
+                        'text': test_text
+                    })
+                else:
+                    current_app.logger.warning(f"TTS endpoint {endpoint} failed: {response.status_code} - {response.text[:200]}")
+                    
+            except requests.exceptions.RequestException as e:
+                current_app.logger.warning(f"TTS endpoint {endpoint} error: {str(e)}")
+                continue
+        
+        # If we get here, all endpoints failed
+        return jsonify({
+            'success': False,
+            'error': 'All TTS endpoints failed. Check the TTS URL and server status.'
+        }), 400
+        
+    except Exception as e:
+        current_app.logger.error(f"TTS simple test error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'TTS test failed: {str(e)}'
+        }), 500
+
 @settings_bp.route('/api/tts-health', methods=['GET'])
 @login_required
 def tts_health_check():
