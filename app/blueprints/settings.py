@@ -89,6 +89,56 @@ def _parse_voice_data(voice: dict) -> dict:
         'description': description
     }
 
+def _resolve_tts_url_for_test(url: str) -> str:
+    """Resolve external TTS URL to internal Docker network address for testing."""
+    try:
+        # If the URL contains an external IP, convert it to internal Docker network
+        if '10.0.0.121' in url or 'localhost' in url:
+            # Extract the port from the URL
+            if ':5500' in url:
+                return 'http://opentts:5500'
+            elif ':11434' in url:
+                return 'http://ollama:11434'
+            else:
+                # Default to opentts if no specific port
+                return 'http://opentts:5500'
+        
+        # If it's already a Docker service name, return as-is
+        if url.startswith('http://opentts:') or url.startswith('http://ollama:'):
+            return url
+        
+        # If it's a different external URL, return as-is
+        return url
+        
+    except Exception as e:
+        print(f"Error resolving TTS URL {url}: {str(e)}")
+        return url
+
+def _resolve_ollama_url_for_test(url: str) -> str:
+    """Resolve external Ollama URL to internal Docker network address for testing."""
+    try:
+        # If the URL contains an external IP, convert it to internal Docker network
+        if '10.0.0.121' in url or 'localhost' in url:
+            # Extract the port from the URL
+            if ':11434' in url:
+                return 'http://ollama:11434'
+            elif ':5500' in url:
+                return 'http://opentts:5500'
+            else:
+                # Default to ollama if no specific port
+                return 'http://ollama:11434'
+        
+        # If it's already a Docker service name, return as-is
+        if url.startswith('http://ollama:') or url.startswith('http://opentts:'):
+            return url
+        
+        # If it's a different external URL, return as-is
+        return url
+        
+    except Exception as e:
+        print(f"Error resolving Ollama URL {url}: {str(e)}")
+        return url
+
 @settings_bp.route('/')
 @login_required
 def index():
@@ -177,9 +227,13 @@ def test_ollama_connection():
     if not ollama_url:
         return jsonify({'error': 'Ollama URL is required'}), 400
     
+    # Resolve external IP to internal Docker network address
+    resolved_url = _resolve_ollama_url_for_test(ollama_url)
+    current_app.logger.info(f"Ollama URL resolved: {ollama_url} -> {resolved_url}")
+    
     try:
         # Test connection by listing models
-        response = requests.get(f"{ollama_url}/api/tags", timeout=10)
+        response = requests.get(f"{resolved_url}/api/tags", timeout=10)
         response.raise_for_status()
         
         models_data = response.json()
@@ -196,9 +250,11 @@ def test_ollama_connection():
         
         return jsonify({
             'success': True,
-            'message': f'Successfully connected to Ollama server at {ollama_url}',
+            'message': f'Successfully connected to Ollama server at {ollama_url} (resolved to {resolved_url})',
             'models': models,
-            'total_models': len(models)
+            'total_models': len(models),
+            'original_url': ollama_url,
+            'resolved_url': resolved_url
         })
         
     except requests.exceptions.RequestException as e:
@@ -225,12 +281,16 @@ def test_tts_connection():
     if not tts_url:
         return jsonify({'error': 'TTS URL is required'}), 400
     
+    # Resolve external IP to internal Docker network address
+    resolved_url = _resolve_tts_url_for_test(tts_url)
+    current_app.logger.info(f"TTS URL resolved: {tts_url} -> {resolved_url}")
+    
     try:
         # Test connection by fetching voices (OpenTTS API)
         # Increased timeout for slow TTS servers
-        current_app.logger.info(f"Testing TTS connection to: {tts_url}")
+        current_app.logger.info(f"Testing TTS connection to: {resolved_url}")
         
-        response = requests.get(f"{tts_url}/api/voices", timeout=30)
+        response = requests.get(f"{resolved_url}/api/voices", timeout=30)
         response.raise_for_status()
         
         voices_data = response.json()
@@ -259,9 +319,11 @@ def test_tts_connection():
         
         return jsonify({
             'success': True,
-            'message': f'Successfully connected to TTS server at {tts_url}',
+            'message': f'Successfully connected to TTS server at {tts_url} (resolved to {resolved_url})',
             'voices': voices,
-            'total_voices': len(voices)
+            'total_voices': len(voices),
+            'original_url': tts_url,
+            'resolved_url': resolved_url
         })
         
     except requests.exceptions.RequestException as e:
@@ -544,11 +606,13 @@ def test_tts_simple():
                     
                     return jsonify({
                         'success': True,
-                        'message': f'TTS synthesis successful using {endpoint}',
+                        'message': f'TTS synthesis successful using {endpoint} (resolved from {tts_url} to {resolved_url})',
                         'endpoint': endpoint,
                         'audio_size': audio_size,
                         'voice': voice,
-                        'text': test_text
+                        'text': test_text,
+                        'original_url': tts_url,
+                        'resolved_url': resolved_url
                     })
                 else:
                     current_app.logger.warning(f"TTS endpoint {endpoint} failed: {response.status_code} - {response.text[:200]}")
