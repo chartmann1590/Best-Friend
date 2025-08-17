@@ -26,11 +26,33 @@ fi
 mkdir -p certs
 mkdir -p logs
 
+# Get system IP address for SSL certificate
+SYSTEM_IP=$(hostname -I | awk '{print $1}' | head -1)
+if [ -z "$SYSTEM_IP" ]; then
+    SYSTEM_IP=$(ip route get 1.1.1.1 | awk '{print $7}' | head -1)
+fi
+if [ -z "$SYSTEM_IP" ]; then
+    SYSTEM_IP="localhost"
+fi
+
+echo "🌐 System IP detected: $SYSTEM_IP"
+
 # Generate self-signed SSL certificate if it doesn't exist
 if [ ! -f certs/cert.pem ] || [ ! -f certs/key.pem ]; then
-    echo "🔐 Generating self-signed SSL certificate..."
-    openssl req -x509 -newkey rsa:4096 -keyout certs/key.pem -out certs/cert.pem -days 365 -nodes -subj "/C=US/ST=State/L=City/O=BestFriend/CN=localhost"
-    echo "✅ SSL certificate generated"
+    echo "🔐 Generating self-signed SSL certificate for IP: $SYSTEM_IP..."
+    openssl req -x509 -newkey rsa:4096 -keyout certs/key.pem -out certs/cert.pem -days 365 -nodes -subj "/C=US/ST=State/L=City/O=BestFriend/CN=$SYSTEM_IP"
+    echo "✅ SSL certificate generated for $SYSTEM_IP"
+else
+    # Check if existing certificate matches current IP
+    CERT_CN=$(openssl x509 -in certs/cert.pem -noout -subject | sed 's/.*CN=//')
+    if [ "$CERT_CN" != "$SYSTEM_IP" ] && [ "$CERT_CN" != "localhost" ]; then
+        echo "⚠️  SSL certificate CN ($CERT_CN) doesn't match current IP ($SYSTEM_IP)"
+        echo "🔄 Regenerating SSL certificate for current IP..."
+        openssl req -x509 -newkey rsa:4096 -keyout certs/key.pem -out certs/cert.pem -days 365 -nodes -subj "/C=US/ST=State/L=City/O=BestFriend/CN=$SYSTEM_IP"
+        echo "✅ SSL certificate regenerated for $SYSTEM_IP"
+    else
+        echo "✅ SSL certificate is valid for current IP ($SYSTEM_IP)"
+    fi
 fi
 
 # Pull latest changes if this is a git repository
@@ -97,6 +119,25 @@ if [ ! -s .env ]; then
 fi
 
 echo "✅ .env file created successfully with $(wc -l < .env) lines"
+
+# Display access information
+echo ""
+echo "🌐 Access Information:"
+echo "   Local access: https://localhost"
+echo "   External access: https://$SYSTEM_IP"
+echo "   OpenTTS: http://$SYSTEM_IP:5500"
+echo ""
+echo "⚠️  Note: If accessing from external devices, make sure:"
+echo "   1. Firewall allows ports 80, 443, and 5500"
+echo "   2. Router forwards these ports if behind NAT"
+echo "   3. SSL certificate is valid for your IP address"
+echo ""
+echo "🔧 Network Configuration Tips:"
+echo "   - Check firewall: sudo ufw status"
+echo "   - Allow ports: sudo ufw allow 80,443,5500"
+echo "   - Check port forwarding on your router"
+echo "   - Verify SSL certificate: openssl x509 -in certs/cert.pem -text -noout | grep DNS"
+echo ""
 
 # Generate Fernet key if not present
 if ! grep -q "FERNET_KEY=" .env || grep -q "your-fernet-key-here" .env; then
