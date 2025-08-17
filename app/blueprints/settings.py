@@ -227,11 +227,20 @@ def test_tts_connection():
     
     try:
         # Test connection by fetching voices (OpenTTS API)
-        response = requests.get(f"{tts_url}/api/voices", timeout=10)
+        # Increased timeout for slow TTS servers
+        current_app.logger.info(f"Testing TTS connection to: {tts_url}")
+        
+        response = requests.get(f"{tts_url}/api/voices", timeout=30)
         response.raise_for_status()
         
         voices_data = response.json()
         voices = []
+        
+        # Log raw response for debugging
+        current_app.logger.info(f"TTS API response status: {response.status_code}")
+        current_app.logger.info(f"TTS API response headers: {dict(response.headers)}")
+        current_app.logger.info(f"TTS API response type: {type(voices_data)}")
+        current_app.logger.info(f"TTS API response length: {len(str(voices_data))}")
         
         # OpenTTS returns an object with voice keys
         # Format: {"espeak:en": {...}, "espeak:de": {...}, ...}
@@ -244,10 +253,9 @@ def test_tts_connection():
                         voices.append(voice)
         
         # Log for debugging
-        print(f"OpenTTS response format: {type(voices_data)}, found {len(voices)} voices")
-        print(f"Raw OpenTTS response: {voices_data}")
+        current_app.logger.info(f"Parsed {len(voices)} voices from TTS server")
         if voices:
-            print(f"Sample voice: {voices[0]}")
+            current_app.logger.info(f"Sample voice: {voices[0]}")
         
         return jsonify({
             'success': True,
@@ -335,29 +343,43 @@ def preview_voice():
     
     try:
         # Get TTS service and generate preview
+        if not hasattr(current_app, 'tts_service') or not current_app.tts_service:
+            return jsonify({
+                'success': False,
+                'error': 'TTS service not available'
+            }), 500
+        
         tts_service = current_app.tts_service
+        
+        # Debug: Log the preview request
+        current_app.logger.info(f"Voice preview request: voice_id={voice_id}, user_id={current_user.id}, text_length={len(preview_text)}")
+        
         audio_data = tts_service.preview_voice(voice_id, current_user.id, preview_text)
         
-        if audio_data:
+        if audio_data and len(audio_data) > 0:
             # Return audio data as base64 encoded string
             import base64
             audio_b64 = base64.b64encode(audio_data).decode('utf-8')
             
+            current_app.logger.info(f"Voice preview successful: {len(audio_data)} bytes")
+            
             return jsonify({
                 'success': True,
                 'audio_data': audio_b64,
-                'message': f'Voice preview generated successfully'
+                'message': f'Voice preview generated successfully ({len(audio_data)} bytes)'
             })
         else:
+            current_app.logger.warning(f"Voice preview failed: no audio data returned")
             return jsonify({
                 'success': False,
-                'error': 'Failed to generate voice preview'
+                'error': 'Failed to generate voice preview - no audio data returned'
             }), 400
             
     except Exception as e:
+        current_app.logger.error(f"Voice preview error: {str(e)}")
         return jsonify({
             'success': False,
-            'error': f'Unexpected error: {str(e)}'
+            'error': f'Voice preview failed: {str(e)}'
         }), 500
 
 @settings_bp.route('/api/clear-memories', methods=['POST'])
@@ -477,7 +499,72 @@ def delete_all_data():
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Error deleting user data: {str(e)}")
-        return jsonify({'success': False, 'error': 'Failed to delete data'}), 500
+        return jsonify({'success': False, 'error': 'Failed to delete data' }), 500
+
+@settings_bp.route('/api/tts-health', methods=['GET'])
+@login_required
+def tts_health_check():
+    """Check TTS service health and connectivity."""
+    try:
+        if not hasattr(current_app, 'tts_service') or not current_app.tts_service:
+            return jsonify({
+                'success': False,
+                'error': 'TTS service not available'
+            }), 500
+        
+        # Get user's TTS settings
+        from app.models import Setting
+        tts_url_setting = Setting.query.filter_by(user_id=current_user.id, key='tts_url').first()
+        
+        if not tts_url_setting:
+            return jsonify({
+                'success': False,
+                'error': 'TTS URL not configured'
+            }), 400
+        
+        tts_url = tts_url_setting.get_value()
+        
+        # Test basic connectivity
+        try:
+            import requests
+            response = requests.get(f"{tts_url}/api/voices", timeout=10)
+            
+            if response.status_code == 200:
+                return jsonify({
+                    'success': True,
+                    'message': f'TTS server at {tts_url} is responding',
+                    'response_time': f'{response.elapsed.total_seconds():.2f}s',
+                    'status_code': response.status_code
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': f'TTS server responded with status {response.status_code}',
+                    'response_text': response.text[:200]
+                }), 400
+                
+        except requests.exceptions.Timeout:
+            return jsonify({
+                'success': False,
+                'error': f'TTS server at {tts_url} timed out after 10 seconds'
+            }), 400
+        except requests.exceptions.ConnectionError:
+            return jsonify({
+                'success': False,
+                'error': f'Cannot connect to TTS server at {tts_url}'
+            }), 400
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'TTS health check failed: {str(e)}'
+            }), 500
+            
+    except Exception as e:
+        current_app.logger.error(f"TTS health check error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Unexpected error: {str(e)}'
+        }), 500
 
 @settings_bp.route('/api/debug-memories', methods=['GET'])
 @login_required

@@ -119,16 +119,20 @@
                                value="{{ settings.get('tts_url', 'http://opentts:5500') }}"
                                class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                                placeholder="http://opentts:5500">
-                        <button type="button" id="testTtsBtn" 
-                                class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors">
-                            Test
-                        </button>
-                    </div>
-                    <p class="text-sm text-gray-500 mt-1">Enter the URL of your TTS server</p>
-                    <div id="ttsStatus" class="mt-2 hidden">
-                        <div id="ttsSuccess" class="hidden text-sm text-green-600 dark:text-green-400"></div>
-                        <div id="ttsError" class="hidden text-sm text-red-600 dark:text-red-400"></div>
-                    </div>
+                                            <button type="button" id="testTtsBtn" 
+                            class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors">
+                        Test
+                    </button>
+                    <button type="button" id="ttsHealthBtn" 
+                            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                        Health
+                    </button>
+                </div>
+                <p class="text-sm text-gray-500 mt-1">Enter the URL of your TTS server</p>
+                <div id="ttsStatus" class="mt-2 hidden">
+                    <div id="ttsSuccess" class="hidden text-sm text-green-600 dark:text-green-400"></div>
+                    <div id="ttsError" class="hidden text-sm text-red-600 dark:text-red-400"></div>
+                </div>
                 </div>
                 
                 <div>
@@ -572,6 +576,33 @@ document.addEventListener('DOMContentLoaded', function() {
         } finally {
             testTtsBtn.disabled = false;
             testTtsBtn.textContent = 'Test';
+        }
+    });
+    
+    // TTS Health Check Button
+    const ttsHealthBtn = document.getElementById('ttsHealthBtn');
+    
+    ttsHealthBtn.addEventListener('click', async function() {
+        ttsHealthBtn.disabled = true;
+        ttsHealthBtn.textContent = 'Checking...';
+        
+        try {
+            const response = await fetch('{{ url_for("settings.tts_health_check") }}');
+            const data = await response.json();
+            
+            console.log('TTS health check response:', data);
+            
+            if (data.success) {
+                showTtsSuccess(`Health Check: ${data.message} (${data.response_time})`);
+            } else {
+                showTtsError(`Health Check Failed: ${data.error}`);
+            }
+        } catch (error) {
+            console.error('Error checking TTS health:', error);
+            showTtsError('Health check failed. Please try again.');
+        } finally {
+            ttsHealthBtn.disabled = false;
+            ttsHealthBtn.textContent = 'Health';
         }
     });
     

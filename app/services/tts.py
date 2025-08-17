@@ -52,7 +52,7 @@ class TTSService:
             response = requests.get(
                 url,
                 params=params,
-                timeout=30
+                timeout=45  # Increased timeout for slow TTS servers
             )
             
             if response.status_code == 200:
@@ -61,6 +61,12 @@ class TTSService:
                 logger.error(f"TTS API error: {response.status_code} - {response.text}")
                 return None
                 
+        except requests.exceptions.Timeout as e:
+            logger.error(f"TTS API request timed out after 45 seconds: {str(e)}")
+            return None
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"TTS API connection failed: {str(e)}")
+            return None
         except requests.exceptions.RequestException as e:
             logger.error(f"TTS API request failed: {str(e)}")
             return None
