@@ -93,16 +93,26 @@ def _parse_voice_data(voice: dict) -> dict:
 @login_required
 def index():
     """Settings page."""
+    # Get user settings from Setting model
     settings = {}
     for setting in current_user.settings:
         settings[setting.key] = setting.get_value()
+    
+    # Add User model fields (name, bio, timezone) to settings
+    # This ensures the AI can access all profile information
+    if current_user.name:
+        settings['name'] = current_user.name
+    if current_user.bio:
+        settings['bio'] = current_user.bio
+    if current_user.timezone:
+        settings['timezone'] = current_user.timezone
     
     return render_template('settings.html', settings=settings)
 
 @settings_bp.route('/', methods=['POST'])
 @login_required
 def update_settings():
-    """Update user settings."""
+    """Update user settings and profile information."""
     # Validate CSRF token
     try:
         validate_csrf(request.form.get('csrf_token'))
@@ -114,7 +124,20 @@ def update_settings():
     # Remove csrf_token from settings data
     settings_data.pop('csrf_token', None)
     
+    # Update User model fields (name, bio, timezone)
+    if 'name' in settings_data:
+        current_user.name = settings_data['name'].strip() if settings_data['name'] else None
+    if 'bio' in settings_data:
+        current_user.bio = settings_data['bio'].strip() if settings_data['bio'] else None
+    if 'timezone' in settings_data:
+        current_user.timezone = settings_data['timezone']
+    
+    # Update other settings in Setting model
     for key, value in settings_data.items():
+        # Skip User model fields that we already handled
+        if key in ['name', 'bio', 'timezone']:
+            continue
+            
         setting = Setting.query.filter_by(user_id=current_user.id, key=key).first()
         if not setting:
             setting = Setting(user_id=current_user.id, key=key)
@@ -124,8 +147,11 @@ def update_settings():
         setting.set_value(value, encrypt=encrypt)
         db.session.add(setting)
     
+    # Add current_user to session and commit
+    db.session.add(current_user)
     db.session.commit()
-    flash('Settings updated successfully!', 'success')
+    
+    flash('Settings and profile updated successfully!', 'success')
     return redirect(url_for('settings.index'))
 
 @settings_bp.route('/api/settings', methods=['GET'])
@@ -407,3 +433,38 @@ def get_memory_stats():
             'success': False,
             'error': f'Unexpected error: {str(e)}'
         }), 500
+
+@settings_bp.route('/api/delete', methods=['DELETE'])
+@login_required
+def delete_all_data():
+    """Delete all user data including conversations, memories, and settings."""
+    try:
+        from app.models import Message, Memory
+        
+        # Delete all user messages
+        Message.query.filter_by(user_id=current_user.id).delete()
+        
+        # Delete all user memories
+        Memory.query.filter_by(user_id=current_user.id).delete()
+        
+        # Delete all user settings
+        Setting.query.filter_by(user_id=current_user.id).delete()
+        
+        # Reset user profile to defaults
+        current_user.name = None
+        current_user.bio = None
+        current_user.timezone = 'UTC'
+        current_user.preferences = {}
+        
+        # Commit all changes
+        db.session.commit()
+        
+        # Log the deletion
+        current_app.logger.warning(f"User {current_user.id} ({current_user.email}) deleted all their data")
+        
+        return jsonify({'success': True, 'message': 'All data deleted successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error deleting user data: {str(e)}")
+        return jsonify({'success': False, 'error': 'Failed to delete data'}), 500
