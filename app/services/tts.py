@@ -25,10 +25,42 @@ class TTSService:
             base_url = tts_url_setting.get_value() if tts_url_setting else self.default_base_url
             voice = tts_voice_setting.get_value() if tts_voice_setting else self.default_voice
             
-            return base_url, voice
+            # Resolve external IP to internal Docker network address
+            resolved_url = self._resolve_tts_url(base_url)
+            
+            # Log URL resolution for debugging
+            if resolved_url != base_url:
+                logger.info(f"TTS URL resolved: {base_url} -> {resolved_url}")
+            
+            return resolved_url, voice
         except Exception as e:
             logger.error(f"Error getting user TTS settings: {str(e)}")
             return self.default_base_url, self.default_voice
+    
+    def _resolve_tts_url(self, url):
+        """Resolve external TTS URL to internal Docker network address."""
+        try:
+            # If the URL contains an external IP, convert it to internal Docker network
+            if '10.0.0.121' in url or 'localhost' in url:
+                # Extract the port from the URL
+                if ':5500' in url:
+                    return 'http://opentts:5500'
+                elif ':11434' in url:
+                    return 'http://ollama:11434'
+                else:
+                    # Default to opentts if no specific port
+                    return 'http://opentts:5500'
+            
+            # If it's already a Docker service name, return as-is
+            if url.startswith('http://opentts:') or url.startswith('http://ollama:'):
+                return url
+            
+            # If it's a different external URL, return as-is
+            return url
+            
+        except Exception as e:
+            logger.error(f"Error resolving TTS URL {url}: {str(e)}")
+            return url
     
     def synthesize_speech(self, text: str, user_id: int, voice: Optional[str] = None, 
                          speed: float = 1.0, pitch: float = 1.0) -> Optional[bytes]:

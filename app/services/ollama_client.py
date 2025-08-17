@@ -27,10 +27,42 @@ class OllamaClient:
             base_url = ollama_url_setting.get_value() if ollama_url_setting else self.default_base_url
             model = ollama_model_setting.get_value() if ollama_model_setting else self.default_model
             
-            return base_url, model
+            # Resolve external IP to internal Docker network address
+            resolved_url = self._resolve_ollama_url(base_url)
+            
+            # Log URL resolution for debugging
+            if resolved_url != base_url:
+                logger.info(f"Ollama URL resolved: {base_url} -> {resolved_url}")
+            
+            return resolved_url, model
         except Exception as e:
             logger.error(f"Error getting user Ollama settings: {str(e)}")
             return self.default_base_url, self.default_model
+    
+    def _resolve_ollama_url(self, url):
+        """Resolve external Ollama URL to internal Docker network address."""
+        try:
+            # If the URL contains an external IP, convert it to internal Docker network
+            if '10.0.0.121' in url or 'localhost' in url:
+                # Extract the port from the URL
+                if ':11434' in url:
+                    return 'http://ollama:11434'
+                elif ':5500' in url:
+                    return 'http://opentts:5500'
+                else:
+                    # Default to ollama if no specific port
+                    return 'http://ollama:11434'
+            
+            # If it's already a Docker service name, return as-is
+            if url.startswith('http://ollama:') or url.startswith('http://opentts:'):
+                return url
+            
+            # If it's a different external URL, return as-is
+            return url
+            
+        except Exception as e:
+            logger.error(f"Error resolving Ollama URL {url}: {str(e)}")
+            return url
     
     def generate_response(self, prompt: str, user_id: int, model: Optional[str] = None, 
                          temperature: float = 0.7, top_p: float = 0.9) -> str:
