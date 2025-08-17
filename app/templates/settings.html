@@ -290,6 +290,24 @@
                     <div id="memoryClearError" class="hidden text-sm text-red-600 dark:text-red-400"></div>
                 </div>
             </div>
+            
+            <!-- Debug Section -->
+            <div class="mt-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-700">
+                <h4 class="text-lg font-medium text-yellow-800 dark:text-yellow-200 mb-3">Debug Memory System</h4>
+                <div class="space-y-3">
+                    <button type="button" id="debugMemoriesBtn" 
+                            class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors">
+                        🔍 Debug Memories
+                    </button>
+                    <button type="button" id="testMemoryCreationBtn" 
+                            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                        🧠 Test Memory Creation
+                    </button>
+                    <div id="debugOutput" class="mt-3 p-3 bg-white dark:bg-gray-800 rounded border text-sm font-mono max-h-40 overflow-y-auto hidden">
+                        <!-- Debug output will appear here -->
+                    </div>
+                </div>
+            </div>
         </div>
         
         <!-- Save Button -->
@@ -825,6 +843,82 @@ document.addEventListener('DOMContentLoaded', function() {
             memoryClearStatus.classList.add('hidden');
         }, 5000);
     }
+    
+    // Debug Memory System
+    const debugMemoriesBtn = document.getElementById('debugMemoriesBtn');
+    const testMemoryCreationBtn = document.getElementById('testMemoryCreationBtn');
+    const debugOutput = document.getElementById('debugOutput');
+    
+    debugMemoriesBtn.addEventListener('click', async function() {
+        try {
+            debugOutput.classList.remove('hidden');
+            debugOutput.innerHTML = '🔍 Loading memory debug info...';
+            
+            const response = await fetch('{{ url_for("settings.debug_memories") }}');
+            const data = await response.json();
+            
+            if (data.success) {
+                let output = `📊 Memory Debug Info:\n`;
+                output += `Total Memories: ${data.total_memories}\n\n`;
+                
+                if (data.memories.length > 0) {
+                    output += `📝 Memory Details:\n`;
+                    data.memories.forEach((memory, index) => {
+                        output += `${index + 1}. [${memory.memory_type}] ${memory.content}\n`;
+                        output += `   Importance: ${memory.importance}, Created: ${memory.created_at}\n\n`;
+                    });
+                } else {
+                    output += `❌ No memories found in database\n`;
+                }
+                
+                debugOutput.innerHTML = output.replace(/\n/g, '<br>');
+            } else {
+                debugOutput.innerHTML = `❌ Error: ${data.error}`;
+            }
+        } catch (error) {
+            console.error('Error debugging memories:', error);
+            debugOutput.innerHTML = `❌ Error: ${error.message}`;
+        }
+    });
+    
+    testMemoryCreationBtn.addEventListener('click', async function() {
+        try {
+            debugOutput.classList.remove('hidden');
+            debugOutput.innerHTML = '🧠 Testing memory creation...';
+            
+            // Test creating a memory
+            const response = await fetch('{{ url_for("chat.chat") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                },
+                body: JSON.stringify({ 
+                    message: 'This is a test message to create a memory',
+                    tts_enabled: false
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                debugOutput.innerHTML = `✅ Test message sent successfully!\n`;
+                debugOutput.innerHTML += `Response: ${data.response}\n\n`;
+                debugOutput.innerHTML += `🔄 Refreshing memory stats...`;
+                
+                // Wait a moment then refresh memory stats
+                setTimeout(() => {
+                    loadMemoryStats();
+                    debugOutput.innerHTML += `<br>✅ Memory stats refreshed!`;
+                }, 1000);
+            } else {
+                debugOutput.innerHTML = `❌ Error: ${data.error}`;
+            }
+        } catch (error) {
+            console.error('Error testing memory creation:', error);
+            debugOutput.innerHTML = `❌ Error: ${error.message}`;
+        }
+    });
 });
 </script>
 {% endblock %}

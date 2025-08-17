@@ -4,6 +4,8 @@ from app.models import User
 from app import db
 from werkzeug.security import check_password_hash
 from app.logging_config import log_authentication_event, log_security_event, log_error
+from flask_wtf.csrf import validate_csrf
+from werkzeug.exceptions import BadRequest
 import os
 
 auth_bp = Blueprint('auth', __name__)
@@ -15,6 +17,13 @@ def login():
         return redirect(url_for('main.index'))
     
     if request.method == 'POST':
+        # Validate CSRF token
+        try:
+            validate_csrf(request.form.get('csrf_token'))
+        except BadRequest:
+            flash('CSRF token validation failed. Please try again.', 'error')
+            return render_template('auth/login.html')
+        
         email = request.form.get('email')
         password = request.form.get('password')
         

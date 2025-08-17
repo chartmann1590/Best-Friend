@@ -415,20 +415,30 @@ def clear_memories():
 def get_memory_stats():
     """Get user memory statistics."""
     try:
-        memory_service = current_app.memory_service
-        if memory_service:
-            stats = memory_service.get_memory_stats(current_user.id)
-            return jsonify({
-                'success': True,
-                'stats': stats
-            })
-        else:
+        # Debug: Check if memory service exists
+        if not hasattr(current_app, 'memory_service') or not current_app.memory_service:
             return jsonify({
                 'success': False,
                 'error': 'Memory service not available'
             }), 500
+        
+        # Debug: Check if user has any memories directly
+        from app.models import Memory
+        direct_count = Memory.query.filter_by(user_id=current_user.id).count()
+        
+        # Get stats from memory service
+        stats = current_app.memory_service.get_memory_stats(current_user.id)
+        
+        # Debug: Add direct count for comparison
+        stats['debug_direct_count'] = direct_count
+        
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
             
     except Exception as e:
+        current_app.logger.error(f"Error getting memory stats: {str(e)}")
         return jsonify({
             'success': False,
             'error': f'Unexpected error: {str(e)}'
@@ -468,3 +478,37 @@ def delete_all_data():
         db.session.rollback()
         current_app.logger.error(f"Error deleting user data: {str(e)}")
         return jsonify({'success': False, 'error': 'Failed to delete data'}), 500
+
+@settings_bp.route('/api/debug-memories', methods=['GET'])
+@login_required
+def debug_memories():
+    """Debug endpoint to see what memories exist for the user."""
+    try:
+        from app.models import Memory
+        
+        # Get all memories for the user
+        memories = Memory.query.filter_by(user_id=current_user.id).all()
+        
+        memory_list = []
+        for memory in memories:
+            memory_list.append({
+                'id': memory.id,
+                'content': memory.content[:100] + "..." if len(memory.content) > 100 else memory.content,
+                'memory_type': memory.memory_type,
+                'importance': memory.importance,
+                'created_at': memory.created_at.isoformat() if memory.created_at else None,
+                'last_accessed': memory.last_accessed.isoformat() if memory.last_accessed else None
+            })
+        
+        return jsonify({
+            'success': True,
+            'total_memories': len(memories),
+            'memories': memory_list
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Error debugging memories: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Unexpected error: {str(e)}'
+        }), 500

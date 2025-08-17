@@ -17,6 +17,18 @@
                 </div>
             </div>
             <div class="flex items-center space-x-2">
+                <!-- TTS Toggle -->
+                <div class="flex items-center space-x-2">
+                    <label class="text-sm text-gray-600 dark:text-gray-400">TTS:</label>
+                    <button id="ttsToggle" class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" 
+                            data-enabled="true">
+                        <span class="sr-only">Toggle TTS</span>
+                        <span id="ttsToggleBg" class="inline-block h-4 w-9 rounded-full bg-blue-600 transition-colors"></span>
+                        <span id="ttsToggleDot" class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-5"></span>
+                    </button>
+                </div>
+                
+                <!-- Voice Recording Button -->
                 <button id="voiceBtn" class="p-2 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
@@ -87,6 +99,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const voiceBtn = document.getElementById('voiceBtn');
     const voiceModal = document.getElementById('voiceModal');
     const stopRecording = document.getElementById('stopRecording');
+    const ttsToggle = document.getElementById('ttsToggle');
+    const ttsToggleBg = document.getElementById('ttsToggleBg');
+    const ttsToggleDot = document.getElementById('ttsToggleDot');
 
     // Handle chat form submission
     chatForm.addEventListener('submit', async function(e) {
@@ -98,6 +113,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add user message to chat
         addMessage(message, 'user');
         messageInput.value = '';
+        
+        // Check if TTS is enabled before sending
+        const ttsEnabled = ttsToggle.getAttribute('data-enabled') === 'true';
 
             // Send message to API
     try {
@@ -107,7 +125,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value,
             },
-            body: JSON.stringify({ message: message })
+            body: JSON.stringify({ 
+                message: message,
+                tts_enabled: ttsEnabled 
+            })
         });
 
             const data = await response.json();
@@ -154,6 +175,42 @@ document.addEventListener('DOMContentLoaded', function() {
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
+    // TTS toggle functionality
+    ttsToggle.addEventListener('click', function() {
+        const isEnabled = this.getAttribute('data-enabled') === 'true';
+        const newState = !isEnabled;
+        
+        this.setAttribute('data-enabled', newState.toString());
+        
+        if (newState) {
+            ttsToggleBg.classList.remove('bg-gray-400');
+            ttsToggleBg.classList.add('bg-blue-600');
+            ttsToggleDot.classList.remove('translate-x-0');
+            ttsToggleDot.classList.add('translate-x-5');
+        } else {
+            ttsToggleBg.classList.remove('bg-blue-600');
+            ttsToggleBg.classList.add('bg-gray-400');
+            ttsToggleDot.classList.remove('translate-x-5');
+            ttsToggleDot.classList.add('translate-x-0');
+        }
+        
+        // Save TTS preference to localStorage
+        localStorage.setItem('tts_enabled', newState.toString());
+    });
+    
+    // Load TTS preference from localStorage
+    const savedTtsEnabled = localStorage.getItem('tts_enabled');
+    if (savedTtsEnabled !== null) {
+        const isEnabled = savedTtsEnabled === 'true';
+        ttsToggle.setAttribute('data-enabled', isEnabled.toString());
+        if (!isEnabled) {
+            ttsToggleBg.classList.remove('bg-blue-600');
+            ttsToggleBg.classList.add('bg-gray-400');
+            ttsToggleDot.classList.remove('translate-x-5');
+            ttsToggleDot.classList.add('translate-x-0');
+        }
+    }
+    
     // Voice recording functionality
     let mediaRecorder;
     let audioChunks = [];

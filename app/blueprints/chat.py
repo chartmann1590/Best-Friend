@@ -30,6 +30,7 @@ def chat():
         
         data = request.get_json()
         message = data.get('message', '').strip()
+        tts_enabled = data.get('tts_enabled', True)  # Default to True if not specified
         
         if not message:
             return jsonify({'error': 'Message is required'}), 400
@@ -99,10 +100,31 @@ def chat():
         duration = time.time() - start_time
         log_performance('chat_request', duration, f"User: {current_user.id}")
         
-        return jsonify({
+        # Prepare response
+        response_data = {
             'response': ai_response,
             'message_id': assistant_message.id
-        })
+        }
+        
+        # Add TTS information if enabled
+        if tts_enabled:
+            # Get user's TTS settings
+            from app.models import Setting
+            tts_url_setting = Setting.query.filter_by(user_id=current_user.id, key='tts_url').first()
+            tts_voice_setting = Setting.query.filter_by(user_id=current_user.id, key='tts_voice').first()
+            
+            if tts_url_setting and tts_voice_setting:
+                tts_url = tts_url_setting.get_value()
+                tts_voice = tts_voice_setting.get_value()
+                
+                response_data['tts'] = {
+                    'enabled': True,
+                    'url': tts_url,
+                    'voice': tts_voice,
+                    'text': ai_response
+                }
+        
+        return jsonify(response_data)
         
     except Exception as e:
         log_error(e, f"Chat endpoint error for user {current_user.id}")
